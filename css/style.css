@@ -12,6 +12,10 @@
   --accent: #b8922d;
   --accent-light: #d4ab4e;
   --accent-dark: #8c6b1e;
+  --pink: #c2185b;
+  --pink-light: #e91e8c;
+  --pink-dark: #880e4f;
+  --pink-soft: #fdf0f5;
 
   /* Neutral — warm toned ivory palette */
   --white: #ffffff;
@@ -86,6 +90,10 @@ img { max-width: 100%; display: block; }
 button { cursor: pointer; border: none; background: none; font-family: var(--font-sans); }
 input, select, textarea { font-family: var(--font-sans); font-size: 1rem; }
 
+body.korea-travel-page {
+  font-family: 'Noto Sans JP', var(--font-sans);
+}
+
 /* ===== CONTAINER ===== */
 .container {
   max-width: var(--container-max);
@@ -149,9 +157,34 @@ input, select, textarea { font-family: var(--font-sans); font-size: 1rem; }
 .section-header.light .section-tag::before,
 .section-header.light .section-tag::after { background: var(--accent-light); }
 
+.tag-pink {
+  color: var(--pink);
+}
+.tag-pink::before,
+.tag-pink::after {
+  background: var(--pink);
+}
+
+.direction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.inbound-badge {
+  background: rgba(194, 24, 91, 0.08);
+  border: 1px solid rgba(194, 24, 91, 0.25);
+  color: var(--pink);
+}
+
 /* Backgrounds */
 .bg-light { background-color: var(--bg-light); }
 .bg-dark-blue { background-color: var(--bg-dark); }
+.bg-pink-light { background-color: var(--pink-soft); }
 
 /* Treatment section background image */
 section#treatment.bg-dark-blue {
@@ -207,6 +240,19 @@ section#treatment.bg-dark-blue {
 .btn-accent:hover {
   background: var(--accent-dark);
   box-shadow: var(--shadow-gold);
+  transform: translateY(-2px);
+}
+
+.btn-pink {
+  background: linear-gradient(135deg, var(--pink), var(--pink-light));
+  color: var(--white);
+  border-color: var(--pink);
+  box-shadow: 0 4px 20px rgba(194, 24, 91, 0.28);
+}
+.btn-pink:hover {
+  background: linear-gradient(135deg, var(--pink-dark), var(--pink));
+  border-color: var(--pink-dark);
+  box-shadow: 0 8px 32px rgba(194, 24, 91, 0.36);
   transform: translateY(-2px);
 }
 
@@ -498,6 +544,405 @@ section#treatment.bg-dark-blue {
   font-size: 0.95rem;
   animation: bounce 2.5s infinite;
   z-index: 2;
+}
+
+/* ===== SERVICE GATEWAY ===== */
+.service-home {
+  min-height: 100vh;
+  background: var(--bg-dark);
+}
+
+.service-gateway {
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  color: var(--white);
+}
+
+.gateway-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.55;
+  filter: saturate(0.85);
+}
+
+.gateway-bg-stemcell {
+  left: 0;
+  background-image: url('../images/hero/img_main2.jpg');
+}
+
+.gateway-bg-travel {
+  right: 0;
+  background-image: url('../images/about/img_care1.jpeg');
+}
+
+.gateway-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(4, 11, 22, 0.84), rgba(4, 11, 22, 0.62), rgba(4, 11, 22, 0.84)),
+    linear-gradient(180deg, rgba(4, 11, 22, 0.35), rgba(4, 11, 22, 0.88));
+}
+
+.gateway-inner {
+  position: relative;
+  z-index: 2;
+  padding-top: 56px;
+  padding-bottom: 56px;
+}
+
+.gateway-logo {
+  display: inline-flex;
+  margin-bottom: 72px;
+}
+
+.gateway-heading {
+  max-width: 720px;
+  margin-bottom: 42px;
+}
+
+.gateway-heading .section-tag {
+  color: var(--accent-light);
+}
+
+.gateway-heading h1 {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 8vw, 6.4rem);
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: 0;
+  margin-bottom: 24px;
+}
+
+.gateway-heading p {
+  color: rgba(255,255,255,0.68);
+  font-size: 1.04rem;
+}
+
+.service-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.service-choice-card {
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 42px 38px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-xl);
+}
+
+.service-choice-card:hover {
+  transform: translateY(-6px);
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(212, 171, 78, 0.5);
+}
+
+.choice-kicker {
+  display: inline-flex;
+  color: var(--accent-light);
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+.choice-icon {
+  width: 58px;
+  height: 58px;
+  border: 1px solid rgba(212, 171, 78, 0.48);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-light);
+  font-size: 1.25rem;
+  margin-bottom: 28px;
+}
+
+.service-choice-card h2 {
+  font-family: var(--font-serif);
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  line-height: 1.35;
+  margin-bottom: 16px;
+  color: var(--white);
+}
+
+.service-choice-card p {
+  color: rgba(255,255,255,0.62);
+  line-height: 1.85;
+  font-size: 0.94rem;
+  margin-bottom: 30px;
+}
+
+.choice-link {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.choice-link i {
+  color: var(--accent-light);
+  transition: var(--transition);
+}
+
+.service-choice-card:hover .choice-link i {
+  transform: translateX(4px);
+}
+
+.travel-hero {
+  background:
+    linear-gradient(160deg, rgba(26, 0, 40, 0.78) 0%, rgba(74, 0, 96, 0.66) 42%, rgba(194, 24, 91, 0.56) 100%),
+    url('../images/about/img_care1.jpeg') center/cover no-repeat;
+}
+
+.travel-hero-v2 .hero-badge {
+  border-color: rgba(244, 143, 177, 0.38);
+  color: #f8bfd2;
+}
+
+.hero-highlight-pink {
+  background: linear-gradient(100deg, #f8bfd2 0%, var(--pink-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.korea-travel-page .stat-num {
+  font-size: clamp(1.15rem, 2.2vw, 1.6rem);
+  letter-spacing: 0;
+}
+
+.about-img-placeholder img.city-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+/* ===== INBOUND KOREA TRAVEL ===== */
+.korea-travel-page .section-title,
+.korea-travel-page .service-title,
+.korea-travel-page .beauty-card h4,
+.korea-travel-page .package-name,
+.korea-travel-page .step-title {
+  font-family: 'Noto Sans JP', var(--font-sans);
+  letter-spacing: 0;
+}
+
+.inbound-services {
+  background: var(--pink-soft);
+}
+
+.inbound-card::before {
+  background: linear-gradient(180deg, var(--pink) 0%, var(--pink-light) 100%);
+}
+
+.inbound-card:hover {
+  border-color: rgba(194, 24, 91, 0.25);
+}
+
+.inbound-card .service-list li i,
+.faq-category-pink,
+.beauty-subtitle i {
+  color: var(--pink);
+}
+
+.inbound-featured {
+  border-color: rgba(194, 24, 91, 0.24);
+  background: linear-gradient(160deg, #fff3f8 0%, var(--white) 100%);
+}
+
+.badge-pink {
+  background: linear-gradient(135deg, var(--pink), var(--pink-light));
+  color: var(--white);
+}
+
+.ib-icon-1 { background: rgba(194, 24, 91, 0.08); color: var(--pink); }
+.ib-icon-2 { background: rgba(233, 30, 140, 0.08); color: var(--pink-light); }
+.ib-icon-3 { background: rgba(136, 14, 79, 0.09); color: var(--pink-dark); }
+.ib-icon-4 { background: rgba(184, 146, 45, 0.1); color: var(--accent-dark); }
+.ib-icon-5 { background: rgba(16, 80, 36, 0.08); color: #1a6b36; }
+.ib-icon-6 { background: rgba(80, 50, 139, 0.08); color: #50328b; }
+
+.beauty-section,
+.k-tourism {
+  margin-bottom: 64px;
+}
+
+.beauty-subtitle {
+  font-family: 'Noto Sans JP', var(--font-sans);
+  font-size: 1.24rem;
+  color: var(--text-dark);
+  margin-bottom: 28px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(194, 24, 91, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.beauty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.beauty-card,
+.ktour-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  padding: 30px 24px;
+  border: 1px solid var(--light-gray);
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.beauty-card::before,
+.ktour-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--pink), var(--pink-light));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: var(--transition);
+}
+
+.beauty-card:hover,
+.ktour-card:hover {
+  border-color: rgba(194, 24, 91, 0.26);
+  box-shadow: 0 14px 44px rgba(194, 24, 91, 0.12);
+  transform: translateY(-4px);
+}
+
+.beauty-card:hover::before,
+.ktour-card:hover::before {
+  transform: scaleX(1);
+}
+
+.beauty-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--pink), var(--pink-light));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-size: 1.2rem;
+  margin-bottom: 18px;
+}
+
+.beauty-card h4,
+.ktour-card h4 {
+  font-size: 1.02rem;
+  color: var(--text-dark);
+  margin-bottom: 10px;
+}
+
+.beauty-card p {
+  color: var(--text-mid);
+  font-size: 0.86rem;
+  line-height: 1.75;
+}
+
+.beauty-tag {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 4px 13px;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  background: rgba(194, 24, 91, 0.08);
+  border: 1px solid rgba(194, 24, 91, 0.18);
+  color: var(--pink);
+}
+
+.ktour-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.ktour-emoji {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+.ktour-card ul li {
+  color: var(--text-mid);
+  font-size: 0.82rem;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+.ktour-card ul li:last-child {
+  border-bottom: none;
+}
+
+.inbound-process .step-number {
+  color: rgba(194, 24, 91, 0.12);
+}
+
+.step-icon-pink {
+  color: var(--pink);
+  border-color: rgba(194, 24, 91, 0.35);
+}
+
+.process-step:hover .step-icon-pink {
+  background: var(--pink);
+  border-color: var(--pink);
+}
+
+.step-dur-pink {
+  color: var(--pink);
+  background: rgba(194, 24, 91, 0.08);
+}
+
+.process-connector-pink {
+  color: rgba(194, 24, 91, 0.45);
+}
+
+.package-days-pink {
+  border-color: rgba(194, 24, 91, 0.45);
+  color: var(--pink);
+}
+
+.package-best-pink {
+  background: linear-gradient(135deg, var(--pink), var(--pink-light));
+  color: var(--white);
+}
+
+.inbound-featured-pkg {
+  border-color: rgba(194, 24, 91, 0.28);
+  background: linear-gradient(170deg, #fff3f8, var(--white));
+}
+
+.inbound-featured-pkg .package-includes li i {
+  color: var(--pink);
 }
 
 @keyframes bounce {
@@ -1775,6 +2220,29 @@ section#treatment.bg-dark-blue {
 @media (max-width: 900px) {
   :root { --section-pad: 80px 0; }
 
+  .gateway-bg {
+    width: 100%;
+    height: 50%;
+  }
+  .gateway-bg-stemcell {
+    top: 0;
+    bottom: auto;
+  }
+  .gateway-bg-travel {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+  }
+  .gateway-logo {
+    margin-bottom: 48px;
+  }
+  .service-choice-grid {
+    grid-template-columns: 1fr;
+  }
+  .service-choice-card {
+    min-height: 260px;
+  }
+
   .main-nav {
     position: fixed;
     top: 0; right: -100%;
@@ -1816,6 +2284,8 @@ section#treatment.bg-dark-blue {
   .city-panel-grid { grid-template-columns: 1fr; gap: 24px; }
   .city-img-wrap { height: 220px; }
   .city-spots { grid-template-columns: 1fr; gap: 12px; }
+  .beauty-grid { grid-template-columns: repeat(2, 1fr); }
+  .ktour-grid { grid-template-columns: repeat(2, 1fr); }
   .package-grid { grid-template-columns: 1fr; }
   .package-card.featured-package { transform: none; }
 
@@ -1856,6 +2326,10 @@ section#treatment.bg-dark-blue {
 
   .services-grid { grid-template-columns: 1fr; }
   .service-card { padding: 32px 24px; }
+  .beauty-grid { grid-template-columns: 1fr; }
+  .ktour-grid { grid-template-columns: 1fr; }
+  .beauty-card,
+  .ktour-card { padding: 26px 20px; }
 
   .disease-grid { grid-template-columns: 1fr; }
 

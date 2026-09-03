@@ -125,6 +125,20 @@ function setLanguage(lang) {
     if (t[key] !== undefined) el.innerHTML = t[key];
   });
 
+  document.querySelectorAll('[data-ko], [data-ja], [data-en]').forEach(el => {
+    const val = el.getAttribute('data-' + lang);
+    if (!val) return;
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+      el.placeholder = val;
+    } else if (el.tagName === 'OPTION') {
+      el.textContent = val;
+    } else {
+      const icon = el.querySelector(':scope > i:last-child');
+      el.innerHTML = val;
+      if (icon && el.classList.contains('faq-question')) el.appendChild(icon);
+    }
+  });
+
   // html lang 속성 업데이트
   document.documentElement.lang = lang;
   document.documentElement.dataset.lang = lang;
@@ -135,7 +149,9 @@ function setLanguage(lang) {
   });
 
   // localStorage 저장
-  localStorage.setItem('scj-lang', lang);
+  if (!document.documentElement.dataset.defaultLang) {
+    localStorage.setItem('scj-lang', lang);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -146,8 +162,9 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // 저장된 언어 복원 (기본: ko)
-  const savedLang = localStorage.getItem('scj-lang') || 'ko';
-  if (savedLang !== 'ko') setLanguage(savedLang);
+  const defaultLang = document.documentElement.dataset.defaultLang || 'ko';
+  const savedLang = document.documentElement.dataset.defaultLang ? defaultLang : (localStorage.getItem('scj-lang') || defaultLang);
+  setLanguage(savedLang);
 
   // ===== AOS 초기화 =====
   AOS.init({
@@ -371,8 +388,10 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
 
       const btn = contactForm.querySelector('button[type=submit]');
+      const originalBtnHtml = btn.innerHTML;
+      const loadingText = document.documentElement.lang === 'ja' ? '送信中...' : '처리 중...';
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 처리 중...';
+      btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingText}`;
 
       // 폼 데이터 수집 후 API 저장
       const formData = {
@@ -396,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(() => null)
         .finally(() => {
           btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-paper-plane"></i> 무료 상담 신청하기';
+          btn.innerHTML = originalBtnHtml;
           contactForm.reset();
           modalOverlay.classList.add('active');
         });
@@ -445,12 +464,15 @@ document.addEventListener('DOMContentLoaded', function () {
     entries.forEach(entry => {
       if (entry.isIntersecting && !statsAnimated) {
         statsAnimated = true;
-        const counters = [
-          { el: statNums[0], target: 500, suffix: '+' },
-          { el: statNums[1], target: 98, suffix: '%' },
-          { el: statNums[2], target: 5, suffix: '+' },
-          { el: statNums[3], target: 24, suffix: 'h' }
-        ];
+        const counters = Array.from(statNums)
+          .map(el => {
+            const text = el.textContent.trim();
+            const target = parseInt(text, 10);
+            return Number.isNaN(target)
+              ? null
+              : { el, target, suffix: text.replace(String(target), '') };
+          })
+          .filter(Boolean);
         counters.forEach(({ el, target, suffix }) => {
           if (el) animateCounter(el, target, 1500, suffix);
         });
