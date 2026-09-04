@@ -92,6 +92,14 @@ input, select, textarea { font-family: var(--font-sans); font-size: 1rem; }
 
 body.korea-travel-page {
   font-family: 'Noto Sans JP', var(--font-sans);
+  --travel-rose: #c2185b;
+  --travel-rose-soft: #fff4f8;
+  --travel-rose-line: rgba(194, 24, 91, 0.18);
+  --travel-charcoal: #211821;
+  --travel-ink: #2c2430;
+  --travel-muted: #726673;
+  --travel-gold: #c9a85a;
+  color: var(--travel-ink);
 }
 
 /* ===== CONTAINER ===== */
@@ -710,13 +718,16 @@ section#treatment.bg-dark-blue {
 
 .travel-hero {
   background:
-    linear-gradient(160deg, rgba(26, 0, 40, 0.78) 0%, rgba(74, 0, 96, 0.66) 42%, rgba(194, 24, 91, 0.56) 100%),
-    url('../images/about/img_care1.jpeg') center/cover no-repeat;
+    linear-gradient(100deg, rgba(16, 12, 18, 0.86) 0%, rgba(45, 18, 38, 0.66) 44%, rgba(194, 24, 91, 0.34) 100%),
+    url('../images/korea-travel/seoul-night-hero.jpg') center/cover no-repeat;
 }
 
 .travel-hero-v2 .hero-badge {
+  background: rgba(255, 255, 255, 0.06);
   border-color: rgba(244, 143, 177, 0.38);
   color: #f8bfd2;
+  font-family: 'Noto Sans JP', var(--font-sans);
+  letter-spacing: 0.08em;
 }
 
 .hero-highlight-pink {
@@ -729,6 +740,54 @@ section#treatment.bg-dark-blue {
 .korea-travel-page .stat-num {
   font-size: clamp(1.15rem, 2.2vw, 1.6rem);
   letter-spacing: 0;
+}
+
+.korea-travel-page .site-header.scrolled {
+  background: rgba(33, 24, 33, 0.96);
+}
+
+.korea-travel-page .site-header.scrolled .lang-btn {
+  color: rgba(255,255,255,0.58);
+}
+
+.korea-travel-page .site-header.scrolled .lang-btn:hover,
+.korea-travel-page .site-header.scrolled .lang-btn.active {
+  color: #f8bfd2;
+}
+
+.korea-travel-page .site-header.scrolled .lang-sep {
+  color: rgba(255,255,255,0.22);
+}
+
+.korea-travel-page .nav-cta,
+.korea-travel-page .logo-icon {
+  background: linear-gradient(135deg, var(--travel-rose), var(--pink-light));
+}
+
+.korea-travel-page .logo-japan,
+.korea-travel-page .footer-logo span,
+.korea-travel-page .footer-logo i {
+  color: #f6bfd0;
+}
+
+.korea-travel-page .bg-light {
+  background: #faf7f9;
+}
+
+.korea-travel-page .bg-dark-blue,
+.korea-travel-page .site-footer {
+  background: #1a121b;
+}
+
+.image-credit {
+  flex-basis: 100%;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.28);
+}
+
+.image-credit a {
+  color: rgba(255,255,255,0.46);
+  text-decoration: underline;
 }
 
 .about-img-placeholder img.city-img {
@@ -749,7 +808,8 @@ section#treatment.bg-dark-blue {
 }
 
 .inbound-services {
-  background: var(--pink-soft);
+  background:
+    linear-gradient(180deg, #fff7fa 0%, #fff 100%);
 }
 
 .inbound-card::before {
@@ -782,6 +842,110 @@ section#treatment.bg-dark-blue {
 .ib-icon-4 { background: rgba(184, 146, 45, 0.1); color: var(--accent-dark); }
 .ib-icon-5 { background: rgba(16, 80, 36, 0.08); color: #1a6b36; }
 .ib-icon-6 { background: rgba(80, 50, 139, 0.08); color: #50328b; }
+
+.vehicle-showcase {
+  background: #fff;
+}
+
+.vehicle-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.vehicle-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid rgba(33, 24, 33, 0.08);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 16px 44px rgba(33, 24, 33, 0.08);
+  transition: var(--transition);
+}
+
+.vehicle-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 22px 58px rgba(194, 24, 91, 0.14);
+  border-color: rgba(194, 24, 91, 0.22);
+}
+
+.vehicle-card-large {
+  grid-column: span 2;
+}
+
+.vehicle-photo {
+  aspect-ratio: 16 / 10;
+  background: #211821;
+  overflow: hidden;
+}
+
+.vehicle-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.55s ease;
+}
+
+.vehicle-card:hover .vehicle-photo img {
+  transform: scale(1.035);
+}
+
+.vehicle-copy {
+  padding: 26px 24px 28px;
+  flex: 1;
+}
+
+.vehicle-label {
+  display: inline-flex;
+  color: var(--travel-rose);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.vehicle-copy h3 {
+  font-family: 'Noto Sans JP', var(--font-sans);
+  font-size: 1.2rem;
+  color: var(--travel-charcoal);
+  margin-bottom: 10px;
+  letter-spacing: 0;
+}
+
+.vehicle-copy p {
+  color: var(--travel-muted);
+  font-size: 0.88rem;
+  line-height: 1.75;
+}
+
+.vehicle-copy ul {
+  margin-top: 18px;
+}
+
+.vehicle-copy li {
+  position: relative;
+  padding: 7px 0 7px 18px;
+  color: var(--travel-muted);
+  font-size: 0.84rem;
+  border-bottom: 1px solid rgba(33, 24, 33, 0.07);
+}
+
+.vehicle-copy li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 17px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--travel-rose);
+}
+
+.vehicle-copy li:last-child {
+  border-bottom: none;
+}
 
 .beauty-section,
 .k-tourism {
@@ -901,6 +1065,98 @@ section#treatment.bg-dark-blue {
 
 .ktour-card ul li:last-child {
   border-bottom: none;
+}
+
+.travel-cta-band {
+  background:
+    linear-gradient(135deg, rgba(33, 24, 33, 0.94), rgba(83, 24, 58, 0.88)),
+    url('../images/korea-travel/seoul-night-hero.jpg') center/cover no-repeat;
+  color: #fff;
+  padding: 58px 0;
+}
+
+.travel-cta-inner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 32px;
+  align-items: center;
+}
+
+.travel-cta-inner .section-tag {
+  margin-bottom: 14px;
+}
+
+.travel-cta-inner h2 {
+  font-family: 'Noto Sans JP', var(--font-sans);
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+  line-height: 1.45;
+  max-width: 780px;
+  margin-bottom: 10px;
+  letter-spacing: 0;
+}
+
+.travel-cta-inner p {
+  color: rgba(255,255,255,0.68);
+  font-size: 0.94rem;
+}
+
+.journey-map {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin: 0 0 48px;
+  padding: 26px 22px;
+  background: #fff;
+  border: 1px solid rgba(33, 24, 33, 0.08);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 38px rgba(33, 24, 33, 0.06);
+  overflow: hidden;
+}
+
+.journey-line {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 58px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(194, 24, 91, 0.15), var(--travel-rose), rgba(201, 168, 90, 0.55));
+}
+
+.journey-stop {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.journey-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(194, 24, 91, 0.24);
+  color: var(--travel-rose);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 26px rgba(194, 24, 91, 0.12);
+  margin-bottom: 14px;
+}
+
+.journey-stop strong {
+  color: var(--travel-charcoal);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.journey-stop span {
+  color: var(--travel-muted);
+  font-size: 0.76rem;
+  margin-top: 4px;
 }
 
 .inbound-process .step-number {
@@ -2215,6 +2471,9 @@ section#treatment.bg-dark-blue {
   .treat-type-grid { grid-template-columns: repeat(3, 1fr); }
   .disease-grid { grid-template-columns: repeat(3, 1fr); }
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 36px; }
+  .vehicle-grid { grid-template-columns: repeat(2, 1fr); }
+  .vehicle-card-large { grid-column: span 1; }
+  .journey-map { grid-template-columns: repeat(5, minmax(100px, 1fr)); overflow-x: auto; }
 }
 
 @media (max-width: 900px) {
@@ -2288,6 +2547,38 @@ section#treatment.bg-dark-blue {
   .ktour-grid { grid-template-columns: repeat(2, 1fr); }
   .package-grid { grid-template-columns: 1fr; }
   .package-card.featured-package { transform: none; }
+  .travel-cta-inner {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+  .journey-map {
+    grid-template-columns: 1fr;
+    overflow: visible;
+    gap: 18px;
+  }
+  .journey-line {
+    left: 53px;
+    right: auto;
+    top: 48px;
+    bottom: 48px;
+    width: 2px;
+    height: auto;
+    background: linear-gradient(180deg, rgba(194, 24, 91, 0.15), var(--travel-rose), rgba(201, 168, 90, 0.55));
+  }
+  .journey-stop {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    column-gap: 16px;
+    text-align: left;
+    align-items: center;
+  }
+  .journey-icon {
+    grid-row: span 2;
+    margin-bottom: 0;
+  }
+  .journey-stop span {
+    margin-top: 0;
+  }
 
   .testimonial-card { width: 100%; min-width: 100%; }
   .testimonial-track { gap: 0; }
@@ -2326,10 +2617,14 @@ section#treatment.bg-dark-blue {
 
   .services-grid { grid-template-columns: 1fr; }
   .service-card { padding: 32px 24px; }
+  .vehicle-grid { grid-template-columns: 1fr; }
+  .vehicle-copy { padding: 22px 20px 24px; }
   .beauty-grid { grid-template-columns: 1fr; }
   .ktour-grid { grid-template-columns: 1fr; }
   .beauty-card,
   .ktour-card { padding: 26px 20px; }
+  .travel-cta-band { padding: 44px 0; }
+  .travel-cta-inner .btn-lg { width: 100%; justify-content: center; }
 
   .disease-grid { grid-template-columns: 1fr; }
 
