@@ -1047,8 +1047,21 @@ section#treatment.bg-dark-blue {
 
 .ktour-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 18px;
+}
+
+.ktour-note {
+  max-width: 820px;
+  margin: -8px 0 24px;
+  color: var(--text-mid);
+  font-size: 0.94rem;
+  line-height: 1.8;
+}
+
+.ktour-card-featured {
+  border-color: rgba(194, 24, 91, 0.26);
+  background: linear-gradient(180deg, rgba(255, 245, 249, 0.92), #fff);
 }
 
 .ktour-emoji {
