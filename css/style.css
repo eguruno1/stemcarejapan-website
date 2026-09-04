@@ -2414,6 +2414,215 @@ section#treatment.bg-dark-blue {
 .float-top { background: var(--primary); color: var(--white); opacity: 0; pointer-events: none; }
 .float-top.visible { opacity: 1; pointer-events: all; }
 
+/* ===== CONSULTATION CHAT WIDGET ===== */
+.consult-chat {
+  position: fixed;
+  right: 88px;
+  bottom: 32px;
+  z-index: 980;
+  font-family: var(--font-sans);
+}
+
+.consult-chat-panel {
+  position: absolute;
+  right: 0;
+  bottom: 68px;
+  width: min(360px, calc(100vw - 32px));
+  background: var(--white);
+  border: 1px solid rgba(213, 207, 197, 0.9);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: var(--transition);
+}
+
+.consult-chat.open .consult-chat-panel {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.consult-chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 18px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: var(--white);
+}
+
+.korea-travel-page .consult-chat-head {
+  background: linear-gradient(135deg, var(--pink), var(--pink-light));
+}
+
+.consult-chat-head span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.68);
+}
+
+.consult-chat-head h2 {
+  font-family: var(--font-serif);
+  font-size: 1.16rem;
+  line-height: 1.35;
+  color: var(--white);
+}
+
+.consult-chat-close {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--white);
+  background: rgba(255,255,255,0.12);
+  flex: 0 0 auto;
+}
+
+.consult-chat-intro {
+  padding: 16px 20px 0;
+  color: var(--text-mid);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.consult-chat-form {
+  padding: 16px 20px 20px;
+}
+
+.consult-chat-form label {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.consult-chat-form label span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-dark);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.consult-chat-form input,
+.consult-chat-form select,
+.consult-chat-form textarea {
+  width: 100%;
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--off-white);
+  color: var(--text-dark);
+  font-size: 0.88rem;
+  outline: none;
+  transition: var(--transition);
+}
+
+.consult-chat-form input:focus,
+.consult-chat-form select:focus,
+.consult-chat-form textarea:focus {
+  border-color: var(--accent);
+  background: var(--white);
+  box-shadow: 0 0 0 3px rgba(184, 146, 45, 0.12);
+}
+
+.korea-travel-page .consult-chat-form input:focus,
+.korea-travel-page .consult-chat-form select:focus,
+.korea-travel-page .consult-chat-form textarea:focus {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px rgba(194, 24, 91, 0.12);
+}
+
+.consult-chat-form textarea {
+  resize: vertical;
+  min-height: 82px;
+}
+
+.consult-chat-status {
+  min-height: 20px;
+  margin: 0 0 12px;
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.consult-chat-status.is-error {
+  color: #b42318;
+}
+
+.consult-chat-submit,
+.consult-chat-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--white);
+  font-weight: 700;
+  box-shadow: var(--shadow-gold);
+  transition: var(--transition);
+}
+
+.consult-chat-submit {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 16px;
+  font-size: 0.88rem;
+}
+
+.consult-chat-toggle {
+  min-width: 132px;
+  min-height: 50px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+}
+
+.consult-chat-submit:hover,
+.consult-chat-toggle:hover {
+  transform: translateY(-2px);
+  background: var(--accent-dark);
+}
+
+.korea-travel-page .consult-chat-submit,
+.korea-travel-page .consult-chat-toggle {
+  background: var(--pink);
+  box-shadow: 0 8px 34px rgba(194, 24, 91, 0.28);
+}
+
+.korea-travel-page .consult-chat-submit:hover,
+.korea-travel-page .consult-chat-toggle:hover {
+  background: var(--pink-dark);
+}
+
+.consult-chat-links {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px 20px;
+}
+
+.consult-chat-links a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--white);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 /* ===== MODAL ===== */
 .modal-overlay {
   position: fixed;
@@ -2856,4 +3065,20 @@ section#treatment.bg-dark-blue {
   .day-course { padding: 16px; }
   .dc-step { gap: 8px; }
   .city-meta { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .consult-chat {
+    right: auto;
+    left: 16px;
+    bottom: 32px;
+  }
+  .consult-chat-panel {
+    right: auto;
+    left: 0;
+    bottom: 60px;
+  }
+  .consult-chat-toggle {
+    min-width: 118px;
+    min-height: 46px;
+    padding: 0 15px;
+    font-size: 0.8rem;
+  }
 }
