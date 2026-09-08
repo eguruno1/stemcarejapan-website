@@ -23,7 +23,7 @@
       servicePlaceholder: '상담 분야 선택',
       services: {
         stemcell: '일본 줄기세포 치료',
-        travel: '한국 뷰티·관광 컨시어지',
+        travel: '한국 체류 컨시어지',
         undecided: '상담 후 결정'
       },
       name: '성함',
@@ -49,7 +49,7 @@
       servicePlaceholder: '相談分野を選択',
       services: {
         stemcell: '日本幹細胞治療',
-        travel: '韓国美容・観光コンシェルジュ',
+        travel: '韓国滞在コンシェルジュ',
         undecided: '相談して決めたい'
       },
       name: 'お名前',
