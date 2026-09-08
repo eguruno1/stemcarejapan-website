@@ -1080,6 +1080,173 @@ section#treatment.bg-dark-blue {
   border-bottom: none;
 }
 
+.service-scope {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin: 24px 0 62px;
+}
+
+.scope-card {
+  background: #fff;
+  border: 1px solid rgba(33, 24, 33, 0.08);
+  border-radius: var(--radius-md);
+  padding: 30px 28px;
+  box-shadow: 0 12px 34px rgba(33, 24, 33, 0.05);
+}
+
+.scope-card-muted {
+  background: linear-gradient(180deg, rgba(255, 248, 251, 0.9), #fff);
+}
+
+.scope-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--travel-charcoal);
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+
+.scope-card h3 i {
+  color: var(--travel-rose);
+}
+
+.scope-card li {
+  color: var(--text-mid);
+  font-size: 0.85rem;
+  line-height: 1.65;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+.scope-card li:last-child {
+  border-bottom: none;
+}
+
+.sample-itineraries {
+  margin-bottom: 62px;
+}
+
+.itinerary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.itinerary-card {
+  background: #fff;
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius-md);
+  padding: 28px 24px;
+  transition: var(--transition);
+}
+
+.itinerary-card:hover {
+  border-color: rgba(194, 24, 91, 0.24);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(33, 24, 33, 0.08);
+}
+
+.itinerary-label {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--pink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.itinerary-card h4 {
+  color: var(--travel-charcoal);
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+
+.itinerary-card ol {
+  list-style: none;
+  counter-reset: itinerary;
+}
+
+.itinerary-card li {
+  counter-increment: itinerary;
+  position: relative;
+  padding: 8px 0 8px 30px;
+  color: var(--text-mid);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+.itinerary-card li:last-child {
+  border-bottom: none;
+}
+
+.itinerary-card li::before {
+  content: counter(itinerary);
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(194, 24, 91, 0.08);
+  color: var(--pink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.consult-prep {
+  display: grid;
+  grid-template-columns: 0.9fr 1.4fr;
+  gap: 28px;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 30px;
+  border-radius: var(--radius-md);
+  background: rgba(33, 24, 33, 0.035);
+  border: 1px solid rgba(33, 24, 33, 0.08);
+}
+
+.prep-copy h3 {
+  color: var(--travel-charcoal);
+  font-size: 1.06rem;
+  margin-bottom: 10px;
+}
+
+.prep-copy p {
+  color: var(--text-mid);
+  font-size: 0.88rem;
+  line-height: 1.75;
+}
+
+.prep-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.prep-list span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(194, 24, 91, 0.15);
+  color: var(--text-mid);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.travel-medical-notice {
+  margin: 0;
+}
+
 .travel-cta-band {
   background:
     linear-gradient(135deg, rgba(33, 24, 33, 0.94), rgba(83, 24, 58, 0.88)),
@@ -2719,6 +2886,8 @@ section#treatment.bg-dark-blue {
   .vehicle-grid { grid-template-columns: repeat(2, 1fr); }
   .vehicle-card-large { grid-column: span 1; }
   .journey-map { grid-template-columns: repeat(5, minmax(100px, 1fr)); overflow-x: auto; }
+  .itinerary-grid { grid-template-columns: repeat(2, 1fr); }
+  .consult-prep { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 900px) {
@@ -2790,6 +2959,8 @@ section#treatment.bg-dark-blue {
   .city-spots { grid-template-columns: 1fr; gap: 12px; }
   .beauty-grid { grid-template-columns: repeat(2, 1fr); }
   .ktour-grid { grid-template-columns: repeat(2, 1fr); }
+  .service-scope { grid-template-columns: 1fr; }
+  .itinerary-grid { grid-template-columns: 1fr; }
   .package-grid { grid-template-columns: 1fr; }
   .package-card.featured-package { transform: none; }
   .travel-cta-inner {
@@ -2866,6 +3037,11 @@ section#treatment.bg-dark-blue {
   .vehicle-copy { padding: 22px 20px 24px; }
   .beauty-grid { grid-template-columns: 1fr; }
   .ktour-grid { grid-template-columns: 1fr; }
+  .service-scope { gap: 14px; }
+  .scope-card,
+  .itinerary-card,
+  .consult-prep { padding: 24px 20px; }
+  .prep-list span { width: 100%; }
   .beauty-card,
   .ktour-card { padding: 26px 20px; }
   .travel-cta-band { padding: 44px 0; }
