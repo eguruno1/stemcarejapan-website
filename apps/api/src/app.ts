@@ -27,8 +27,6 @@ export function createApp(): Express {
   app.use('/api/admin/chat-rooms', adminChatRoutes);
   app.use('/api/public/chat', publicChatRoutes);
 
-  // ↓ 라우터는 Task 6~8 에서 여기에 하나씩 추가한다.
-
   app.use((_req, _res, next) => next(notFound('요청한 경로를 찾을 수 없습니다.')));
   app.use(errorHandler);
 

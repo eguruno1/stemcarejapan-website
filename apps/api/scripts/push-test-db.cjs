@@ -11,17 +11,8 @@ const path = require('node:path');
 
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 
-const testUrl = process.env.TEST_DATABASE_URL;
-
-if (!testUrl) {
-  console.error('[pretest] TEST_DATABASE_URL 이 .env 에 없습니다. .env.example 을 참고하세요.');
-  process.exit(1);
-}
-
-if (testUrl === process.env.DATABASE_URL) {
-  console.error('[pretest] TEST_DATABASE_URL 이 개발 DB 와 같습니다. 테스트가 개발 데이터를 지웁니다.');
-  process.exit(1);
-}
+const { testDatabaseUrl } = require('./test-db-url.cjs');
+const testUrl = testDatabaseUrl(process.env);
 
 execSync('npx prisma db push --skip-generate', {
   stdio: 'inherit',

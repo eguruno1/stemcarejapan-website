@@ -11,9 +11,8 @@ import { createNote } from '../notes/noteService';
 import {
   assertRoomOpen,
   assignRoom,
-  getRoomDetail,
+  getRoomDetailAndMarkRead,
   listRooms,
-  markRoomRead,
   updateRoomStatus
 } from './chatRoomService';
 
@@ -47,8 +46,7 @@ adminChatRoutes.get(
 adminChatRoutes.get(
   '/:roomId',
   asyncHandler(async (req, res) => {
-    const room = await getRoomDetail(req.params.roomId);
-    await markRoomRead(room.id);
+    const room = await getRoomDetailAndMarkRead(req.params.roomId);
     res.json({ room });
   })
 );
@@ -60,9 +58,11 @@ const StatusSchema = z.object({ status: z.enum(CHAT_ROOM_STATUSES) });
 const OperatorMessageSchema = z.object({
   originalText: z.string().trim().min(1, '메시지를 입력해주세요.').max(2000),
   originalLanguage: z.enum(LANGUAGES),
-  translatedText: z.string().max(2000).optional(),
+  translatedText: z.string().trim().min(1).max(2000).optional(),
   translatedLanguage: z.enum(LANGUAGES).optional(),
-  clientMessageId: z.string().max(100).optional()
+  clientMessageId: z.string().trim().min(1).max(100).optional()
+}).refine(body => (body.translatedText !== undefined) === (body.translatedLanguage !== undefined), {
+  message: '번역문과 번역 언어를 함께 입력해주세요.', path: ['translatedText']
 });
 
 const NoteSchema = z.object({

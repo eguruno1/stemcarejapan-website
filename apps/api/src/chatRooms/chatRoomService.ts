@@ -1,4 +1,4 @@
-import type { ChatRoom } from '@prisma/client';
+import type { ChatRoom, Prisma } from '@prisma/client';
 import type {
   ChatRoomDetail,
   ChatRoomListItem,
@@ -7,6 +7,7 @@ import type {
   StartChatRequest,
   StartChatResponse
 } from '@stemcare/shared';
+import { lockRoom } from './roomLock';
 import { conflict, forbidden, notFound, unauthorized } from '../common/errors';
 import { prisma } from '../db';
 import { createVisitorToken, hashVisitorToken } from '../auth/token';
@@ -38,21 +39,15 @@ export async function startChat(input: StartChatRequest): Promise<StartChatRespo
       }
     });
 
+    const firstMessage = input.message?.trim();
+    if (firstMessage) {
+      await createMessage({
+        chatRoomId: room.id, senderType: 'customer', senderId: customer.id,
+        text: firstMessage, originalLanguage: input.preferredLanguage, viewer: 'customer'
+      }, tx);
+    }
     return { customer, room };
   });
-
-  const firstMessage = input.message?.trim();
-  if (firstMessage) {
-    await createMessage({
-      chatRoomId: room.id,
-      senderType: 'customer',
-      senderId: customer.id,
-      text: firstMessage,
-      // 언어 감지는 Phase 5 에서 붙인다. 지금은 고객이 고른 언어를 그대로 쓴다.
-      originalLanguage: input.preferredLanguage,
-      viewer: 'customer'
-    });
-  }
 
   return {
     roomId: room.id,
@@ -109,7 +104,7 @@ export async function listRooms(filter: ListRoomsFilter = {}): Promise<ChatRoomL
     orderBy:
       filter.sort === 'oldest_waiting'
         ? [{ lastMessageAt: 'asc' }, { createdAt: 'asc' }]
-        : [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }]
+        : [{ lastMessageAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }]
   })) as RoomWithRelations[];
 
   if (rooms.length === 0) return [];
@@ -134,8 +129,8 @@ export async function listRooms(filter: ListRoomsFilter = {}): Promise<ChatRoomL
   return rooms.map((room) => toChatRoomListItem(room, unreadByRoom.get(room.id) ?? 0));
 }
 
-export async function getRoomDetail(roomId: string): Promise<ChatRoomDetail> {
-  const room = await prisma.chatRoom.findUnique({
+export async function getRoomDetail(roomId: string, db: Prisma.TransactionClient = prisma): Promise<ChatRoomDetail> {
+  const room = await db.chatRoom.findUnique({
     where: { id: roomId },
     include: {
       customer: true,
@@ -148,7 +143,7 @@ export async function getRoomDetail(roomId: string): Promise<ChatRoomDetail> {
     throw notFound('상담방을 찾을 수 없습니다.');
   }
 
-  const messages = await listMessages(room.id, 'operator');
+  const messages = await listMessages(room.id, 'operator', db);
   const latestSummary = room.summaries[0] ?? null;
 
   return {
@@ -181,41 +176,34 @@ export async function getRoomDetail(roomId: string): Promise<ChatRoomDetail> {
   };
 }
 
-/** 운영자가 방을 열면 "여기까지 읽었다"를 기록한다. */
-export async function markRoomRead(roomId: string): Promise<void> {
-  await prisma.chatRoom.update({
-    where: { id: roomId },
-    data: { operatorLastReadAt: new Date() }
+/** 상세 조회와 읽음 처리가 새 메시지 저장과 엇갈리지 않도록 같은 잠금을 쓴다. */
+export async function getRoomDetailAndMarkRead(roomId: string): Promise<ChatRoomDetail> {
+  return prisma.$transaction(async tx => {
+    const room = await lockRoom(tx, roomId);
+    const detail = await getRoomDetail(roomId, tx);
+    await tx.chatRoom.update({ where: { id: roomId }, data: {
+      operatorLastReadAt: new Date(Math.max(Date.now(), room.lastMessageAt?.getTime() ?? 0))
+    } });
+    return detail;
   });
 }
 
 /* ---------- 배정과 상태 변경 (Task 8) ---------- */
 
 export async function assignRoom(roomId: string, operatorId: string): Promise<ChatRoomDetail> {
-  const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
-  if (!room) throw notFound('상담방을 찾을 수 없습니다.');
-
-  if (room.assignedOperatorId && room.assignedOperatorId !== operatorId) {
-    throw conflict('ALREADY_ASSIGNED', '다른 운영자가 이미 담당 중인 상담입니다.');
-  }
-
-  // 이미 내가 맡은 방이면 시스템 메시지를 또 남기지 않는다.
-  const isNewAssignment = room.assignedOperatorId !== operatorId;
-
-  await prisma.chatRoom.update({
-    where: { id: roomId },
-    data: { assignedOperatorId: operatorId, status: 'active', closedAt: null }
+  await prisma.$transaction(async tx => {
+    const room = await lockRoom(tx, roomId);
+    if (room.assignedOperatorId && room.assignedOperatorId !== operatorId) {
+      throw conflict('ALREADY_ASSIGNED', '다른 운영자가 이미 담당 중인 상담입니다.');
+    }
+    await tx.chatRoom.update({ where: { id: roomId }, data: {
+      assignedOperatorId: operatorId, status: 'active', closedAt: null
+    } });
+    if (room.assignedOperatorId !== operatorId) {
+      await createMessage({ chatRoomId: roomId, senderType: 'system',
+        text: '운영자가 상담에 참여했습니다.', originalLanguage: 'ko' }, tx);
+    }
   });
-
-  if (isNewAssignment) {
-    await createMessage({
-      chatRoomId: roomId,
-      senderType: 'system',
-      text: '운영자가 상담에 참여했습니다.',
-      visibleText: '운영자가 상담에 참여했습니다.',
-      originalLanguage: 'ko'
-    });
-  }
 
   return getRoomDetail(roomId);
 }
@@ -225,29 +213,19 @@ export async function updateRoomStatus(
   status: ChatRoomStatus,
   operatorId: string
 ): Promise<ChatRoomDetail> {
-  const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
-  if (!room) throw notFound('상담방을 찾을 수 없습니다.');
-
-  await prisma.chatRoom.update({
-    where: { id: roomId },
-    data: {
+  await prisma.$transaction(async tx => {
+    const room = await lockRoom(tx, roomId);
+    if (room.status === status) return;
+    await tx.chatRoom.update({ where: { id: roomId }, data: {
       status,
-      // closed 로 갈 때만 종료 시각을 찍고, 다시 열면 지운다.
       closedAt: status === 'closed' ? new Date() : null,
-      // 운영자가 직접 맡으면서 상태를 바꾸는 경우 담당자도 채워준다.
       assignedOperatorId: status === 'active' ? (room.assignedOperatorId ?? operatorId) : room.assignedOperatorId
+    } });
+    if (status === 'closed') {
+      await createMessage({ chatRoomId: roomId, senderType: 'system',
+        text: '상담이 종료되었습니다.', originalLanguage: 'ko' }, tx);
     }
   });
-
-  if (status === 'closed') {
-    await createMessage({
-      chatRoomId: roomId,
-      senderType: 'system',
-      text: '상담이 종료되었습니다.',
-      visibleText: '상담이 종료되었습니다.',
-      originalLanguage: 'ko'
-    });
-  }
 
   return getRoomDetail(roomId);
 }

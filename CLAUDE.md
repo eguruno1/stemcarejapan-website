@@ -38,7 +38,7 @@ python3 -m http.server 8080
 npx serve .
 ```
 
-There are no build, lint, or test commands — this is a zero-dependency static site.
+The static site uses no npm build; the consulting chat workspaces use `npm run build` and `npm test`. See `README-chat.md`.
 
 ## Architecture
 
@@ -125,7 +125,7 @@ The contact form (`#contact`) collects: name, age, phone, email, disease, packag
 
 ## 상담채팅시스템 (Phase 0~6)
 
-정적 홈페이지와 별개로 `apps/api`(Express+Socket.IO), `apps/admin`(Next.js),
+정적 홈페이지와 별개로 `apps/api`(Express; Socket.IO는 Phase 4 예정), `apps/admin`(Next.js),
 `packages/shared`(공용 타입)가 npm workspace 로 함께 관리된다.
 
 - 실행 방법과 포트 배치: `README-chat.md` 참고

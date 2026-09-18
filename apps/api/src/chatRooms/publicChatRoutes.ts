@@ -22,7 +22,7 @@ const StartChatSchema = z.object({
 
 const CustomerMessageSchema = z.object({
   text: z.string().trim().min(1, '메시지를 입력해주세요.').max(2000),
-  clientMessageId: z.string().max(100).optional()
+  clientMessageId: z.string().trim().min(1).max(100).optional()
 });
 
 function visitorTokenOf(req: { header(name: string): string | undefined }): string | undefined {

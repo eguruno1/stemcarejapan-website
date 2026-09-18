@@ -16,7 +16,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.API_PORT ?? 4000),
   databaseUrl: required('DATABASE_URL', 'postgresql://stemcare:stemcare@localhost:5434/stemcare_chat'),
-  jwtSecret: required('JWT_SECRET', 'dev-only-secret'),
+  jwtSecret: required('JWT_SECRET', process.env.NODE_ENV === 'production' ? undefined : 'dev-only-secret'),
   adminCookieName: process.env.ADMIN_COOKIE_NAME ?? 'scj_admin_token',
   corsOrigins: [
     process.env.WEBSITE_ORIGIN ?? 'http://localhost:8080',

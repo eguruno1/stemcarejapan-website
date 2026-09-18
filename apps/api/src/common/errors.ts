@@ -40,6 +40,16 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
+  const bodyError = err as { type?: string } | null;
+  if (bodyError?.type === 'entity.parse.failed' || bodyError?.type === 'entity.too.large') {
+    const tooLarge = bodyError.type === 'entity.too.large';
+    res.status(tooLarge ? 413 : 400).json({ error: {
+      code: tooLarge ? 'PAYLOAD_TOO_LARGE' : 'INVALID_JSON',
+      message: tooLarge ? '요청 본문이 너무 큽니다.' : '올바른 JSON 형식이 아닙니다.'
+    } });
+    return;
+  }
+
   // 우리가 예상하지 못한 오류. 내부 사정을 고객에게 노출하지 않는다.
   console.error('[unhandled error]', err);
   res.status(500).json({
