@@ -233,6 +233,20 @@ describe('chat:message', () => {
     expect(error.code).toBe('ROOM_CLOSED');
   });
 
+  it('전송이 거부되면 오류에 어떤 pending 말풍선인지 함께 실려 온다', async () => {
+    // clientMessageId 가 없으면 위젯은 어떤 "전송 중" 말풍선을 실패로 바꿔야 할지
+    // 알 수 없다. ack(성공)도 이 error(실패)도 못 받으면 그 말풍선은 영원히 멈춰 있는다.
+    const { room, visitorToken } = await createCustomerWithRoom({ status: 'closed' });
+    const socket = await connect({ roomId: room.id, visitorToken });
+    socket.emit('chat:join', { roomId: room.id });
+    await waitFor(socket, 'chat:joined');
+
+    socket.emit('chat:message', { roomId: room.id, text: '종료 후', clientMessageId: 'pending-42' });
+    const error = await waitFor<{ code: string; clientMessageId?: string }>(socket, 'chat:error');
+
+    expect(error.clientMessageId).toBe('pending-42');
+  });
+
   it('다른 상담방으로는 메시지를 보낼 수 없다', async () => {
     const mine = await createCustomerWithRoom();
     const other = await createCustomerWithRoom();

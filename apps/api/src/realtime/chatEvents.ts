@@ -25,8 +25,14 @@ const HandoffSchema = z.object({
   reason: z.string().max(100).optional()
 });
 
-function emitError(socket: Socket, code: string, message: string): void {
-  socket.emit('chat:error', { code, message });
+function emitError(socket: Socket, code: string, message: string, extra?: Record<string, unknown>): void {
+  socket.emit('chat:error', { code, message, ...extra });
+}
+
+/** raw 입력이나 파싱된 입력 어느 쪽에서든 clientMessageId 를 안전하게 꺼낸다. */
+function clientMessageIdOf(input: unknown): Record<string, unknown> {
+  const value = (input as { clientMessageId?: unknown } | null)?.clientMessageId;
+  return typeof value === 'string' ? { clientMessageId: value } : {};
 }
 
 /** 이 소켓이 해당 상담방을 다룰 권한이 있는지 확인한다. */
@@ -40,24 +46,37 @@ function assertRoomAccess(socket: Socket, roomId: string): void {
 export function registerChatEvents(io: Server, socket: Socket): void {
   const identity = identityOf(socket)!;
 
-  /** 모든 핸들러를 감싸 오류를 chat:error 로 바꿔준다. */
-  function handle<T>(schema: z.ZodSchema<T>, fn: (input: T) => Promise<void>) {
+  /**
+   * schema 로 검증 후 fn 을 실행하고, 어느 단계에서 실패하든 chat:error 로 바꿔준다.
+   *
+   * errorContext 는 실패한 입력(raw 또는 파싱된 값)에서 클라이언트가 실패를 특정
+   * 메시지에 되돌려 붙일 수 있는 값(clientMessageId)을 뽑아 오류에 함께 실어 보낸다.
+   * 이게 없으면, 소켓으로 보낸 메시지가 서버에서 거부됐을 때 위젯의 "전송 중" 말풍선이
+   * 영영 확정되지도 실패 표시되지도 않은 채 남는다 — ack(성공)도 error(실패, 대상 불명)도
+   * 그 말풍선을 가리키지 못하기 때문이다.
+   */
+  function handle<T>(
+    schema: z.ZodSchema<T>,
+    fn: (input: T) => Promise<void>,
+    errorContext: (input: unknown) => Record<string, unknown> = () => ({})
+  ) {
     return async (raw: unknown) => {
       const parsed = schema.safeParse(raw);
       if (!parsed.success) {
-        emitError(socket, 'VALIDATION_ERROR', '잘못된 요청입니다.');
+        emitError(socket, 'VALIDATION_ERROR', '잘못된 요청입니다.', errorContext(raw));
         return;
       }
 
       try {
         await fn(parsed.data);
       } catch (err) {
+        const extra = errorContext(parsed.data);
         if (err instanceof AppError) {
-          emitError(socket, err.code, err.message);
+          emitError(socket, err.code, err.message, extra);
           return;
         }
         console.error('[socket] unhandled', err);
-        emitError(socket, 'INTERNAL_ERROR', '처리 중 문제가 발생했습니다.');
+        emitError(socket, 'INTERNAL_ERROR', '처리 중 문제가 발생했습니다.', extra);
       }
     };
   }
@@ -123,7 +142,7 @@ export function registerChatEvents(io: Server, socket: Socket): void {
         clientMessageId,
         message: toMessageDTO(row, viewer)
       });
-    })
+    }, clientMessageIdOf)
   );
 
   socket.on(

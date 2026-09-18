@@ -118,6 +118,7 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
           <span data-role="status-label" data-i18n="status.bot"></span>
           <span class="reconnecting" data-role="reconnecting" data-i18n="error.network" hidden></span>
         </div>
+        <p class="consult-chat-offline" data-role="offline-notice" hidden></p>
 
         <div class="consult-chat-threadwrap">
           <div class="consult-chat-thread" data-role="thread" tabindex="0"></div>
@@ -159,6 +160,7 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
     statusbar: root.querySelector('.consult-chat-statusbar'),
     statusLabel: root.querySelector('[data-role="status-label"]'),
     reconnecting: root.querySelector('[data-role="reconnecting"]'),
+    offlineNotice: root.querySelector('[data-role="offline-notice"]'),
     thread: root.querySelector('[data-role="thread"]'),
     newMsgButton: root.querySelector('[data-role="newmsg"]'),
     composer: root.querySelector('.consult-chat-composer'),
@@ -283,8 +285,23 @@ export function renderState(elements, state) {
   // 채팅 화면
   const status = state.room?.status ?? 'bot';
   elements.statusbar.dataset.status = status;
-  elements.statusLabel.textContent = t(`status.${status}`);
   elements.reconnecting.hidden = state.connection !== 'reconnecting';
+
+  // 상태 표시줄: 상담 상태 + (입력 중이면 그것만, 아니면 담당자 접속 여부)
+  const parts = [t(`status.${status}`)];
+  if (state.peerTyping) {
+    parts.push(t('peer.typing'));
+  } else if (state.presence.operatorOnline) {
+    parts.push(t('presence.inRoom'));
+  } else if (state.presence.anyOperatorOnline) {
+    parts.push(t('presence.online'));
+  }
+  elements.statusLabel.textContent = parts.join(' · ');
+
+  // 운영자를 기다리는 중인데 아무도 접속해 있지 않으면 안내 문구를 띄운다.
+  const showOfflineNotice = (status === 'waiting' || status === 'bot') && !state.presence.anyOperatorOnline;
+  elements.offlineNotice.hidden = !showOfflineNotice;
+  if (showOfflineNotice) elements.offlineNotice.textContent = t('presence.offline');
 
   const closed = status === 'closed';
   elements.composerInput.disabled = closed;

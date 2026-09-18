@@ -1,6 +1,13 @@
-import { ChatApiError, sendMessage, startChat } from './api.js';
+import { ChatApiError, startChat } from './api.js';
 import { getLang, t } from './i18n.js';
-import { pollOnce, startPolling, stopPolling } from './poller.js';
+import {
+  refreshNow,
+  requestHandoff as requestHandoffStream,
+  sendMessage as sendMessageStream,
+  sendTyping,
+  startStream,
+  stopStream
+} from './stream.js';
 import { applyStaticLabels, mountWidget, renderState, scrollToBottom } from './render.js';
 import {
   addPendingMessage,
@@ -9,7 +16,6 @@ import {
   getSession,
   getState,
   loadSession,
-  resolvePendingMessage,
   retryPendingMessage,
   saveSession,
   setPhase,
@@ -43,7 +49,7 @@ function errorKeyOf(error) {
 
 /** 저장된 세션이 서버에서 사라졌거나 만료됐을 때. */
 function onSessionLost(error) {
-  stopPolling();
+  stopStream();
   clearSession();
   setPhase('form', errorKeyOf(error));
 }
@@ -102,7 +108,7 @@ function bindPanelToggle(elements) {
     elements.toggle.setAttribute('aria-expanded', String(isOpen));
     elements.toggle.setAttribute('aria-label', isOpen ? t('close.label') : t('open.label'));
     if (isOpen && getState().phase === 'chat') {
-      void pollOnce();
+      refreshNow();
     }
   });
 
@@ -120,7 +126,7 @@ function restoreSession() {
   if (!session) return;
 
   setPhase('chat');
-  startPolling({ onError: onSessionLost });
+  void startStream({ onFatalError: onSessionLost });
 }
 
 /* ---------- 상담 시작 ---------- */
@@ -163,7 +169,7 @@ function bindStartForm(elements) {
 
       saveSession({ roomId: result.roomId, visitorToken: result.visitorToken });
       setPhase('chat');
-      startPolling({ onError: onSessionLost });
+      void startStream({ onFatalError: onSessionLost });
     } catch (error) {
       setPhase('form', errorKeyOf(error));
     }
@@ -177,21 +183,16 @@ async function submitMessage(text, clientMessageId) {
   if (!session) return;
 
   try {
-    const { message } = await sendMessage(session.roomId, session.visitorToken, {
-      text,
-      clientMessageId
-    });
-    if (getSession() !== session) return;
-    resolvePendingMessage(clientMessageId, message);
-    // 운영자 답변이 이미 와 있을 수 있으니 바로 한 번 더 확인한다.
-    void pollOnce();
+    // stream.sendMessage 는 소켓이 살아 있으면 소켓으로, 아니면 HTTP 로 보낸다.
+    // 소켓 성공은 chat:message:ack 가, 소켓 실패는 chat:error 의 clientMessageId 매칭이
+    // 각자 pending 말풍선을 정리한다 — 이 함수는 HTTP 경로의 오류만 처리하면 된다.
+    await sendMessageStream({ text, clientMessageId });
   } catch (error) {
     if (getSession() !== session) return;
     if (error instanceof ChatApiError && [401, 403, 404].includes(error.status)) {
       onSessionLost(error);
       return;
     }
-    if (error instanceof ChatApiError && error.code === 'ROOM_CLOSED') void pollOnce();
     failPendingMessage(clientMessageId);
   }
 }
@@ -204,6 +205,7 @@ function bindComposer(elements) {
     input.style.height = 'auto';
     input.style.height = `${input.scrollHeight}px`;
     elements.composerButton.disabled = input.value.trim() === '';
+    sendTyping(input.value.trim().length > 0);
   });
 
   // Enter = 전송, Shift+Enter = 줄바꿈
@@ -225,6 +227,7 @@ function bindComposer(elements) {
     input.value = '';
     input.style.height = 'auto';
     elements.composerButton.disabled = true;
+    sendTyping(false);
 
     void submitMessage(text, clientMessageId);
   });
@@ -262,6 +265,9 @@ function bindThreadActions(elements) {
   elements.handoffButton.addEventListener('click', () => {
     if (!getSession() || getState().room?.status === 'closed') return;
 
+    // 소켓이 있으면 전용 이벤트로 요청한다. 실패(폴링 모드 등)하면 일반 메시지로 대신한다.
+    if (requestHandoffStream()) return;
+
     const clientMessageId = newClientMessageId();
     const text = t('handoff.message');
     addPendingMessage({ clientMessageId, text, createdAt: new Date().toISOString() });
@@ -270,7 +276,7 @@ function bindThreadActions(elements) {
 
   // 새 상담 시작
   elements.newChatButton.addEventListener('click', () => {
-    stopPolling();
+    stopStream();
     clearSession();
     elements.composerInput.value = '';
     elements.composerInput.style.height = 'auto';

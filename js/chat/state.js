@@ -11,7 +11,10 @@ const state = {
   pending: [],          // 아직 서버 확인 전인 내 메시지
   phase: 'form',        // 'form' | 'starting' | 'chat'
   errorKey: null,       // i18n 키
-  connection: 'idle'    // 'idle' | 'ok' | 'reconnecting'
+  connection: 'idle',   // 'idle' | 'ok' | 'reconnecting'
+  transport: 'none',    // 'none' | 'socket' | 'polling'
+  peerTyping: false,
+  presence: { operatorOnline: false, anyOperatorOnline: false }
 };
 
 const listeners = new Set();
@@ -27,7 +30,12 @@ function notify() {
 
 export function getState() {
   // 얕은 복사를 돌려줘서 바깥에서 실수로 원본을 고치지 못하게 한다.
-  return { ...state, messages: [...state.messages], pending: [...state.pending] };
+  return {
+    ...state,
+    messages: [...state.messages],
+    pending: [...state.pending],
+    presence: { ...state.presence }
+  };
 }
 
 /* ---------- 세션 (localStorage) ---------- */
@@ -64,6 +72,9 @@ export function clearSession() {
   state.phase = 'form';
   state.errorKey = null;
   state.connection = 'idle';
+  state.transport = 'none';
+  state.peerTyping = false;
+  state.presence = { operatorOnline: false, anyOperatorOnline: false };
   try {
     window.localStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -94,6 +105,39 @@ export function setConnection(connection) {
 
 export function setRoom(room) {
   state.room = room;
+  notify();
+}
+
+/** 소켓이 알려주는 상태만 갈아끼운다. room 의 나머지 필드는 그대로 둔다. */
+export function setRoomStatus(status) {
+  state.room = state.room ? { ...state.room, status } : { status };
+  notify();
+}
+
+export function setTransport(transport) {
+  if (state.transport === transport) return;
+  state.transport = transport;
+  notify();
+}
+
+export function setPeerTyping(isTyping) {
+  if (state.peerTyping === isTyping) return;
+  state.peerTyping = isTyping;
+  notify();
+}
+
+export function setPresence(presence) {
+  const next = {
+    operatorOnline: Boolean(presence.operatorOnline),
+    anyOperatorOnline: Boolean(presence.anyOperatorOnline)
+  };
+  if (
+    state.presence.operatorOnline === next.operatorOnline &&
+    state.presence.anyOperatorOnline === next.anyOperatorOnline
+  ) {
+    return;
+  }
+  state.presence = next;
   notify();
 }
 

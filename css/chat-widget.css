@@ -59,6 +59,20 @@
 }
 .consult-chat-statusbar .reconnecting[hidden] { display: none; }
 
+/* ---------- 담당자 부재중 안내 ---------- */
+.consult-chat-offline {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8a5f10;
+  background: #fdf6e4;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  flex: none;
+}
+
+.consult-chat-offline[hidden] { display: none; }
+
 /* ---------- 메시지 목록 ---------- */
 /* '새 메시지' 버튼을 메시지 목록 위에 띄우기 위한 기준 상자 */
 .consult-chat-threadwrap {

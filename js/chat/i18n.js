@@ -63,7 +63,12 @@ const DICT = {
     'error.unknown': '문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
 
     'newChat': '새 상담 시작',
-    'handoff.message': '담당자와 상담하고 싶습니다.'
+    'handoff.message': '담당자와 상담하고 싶습니다.',
+
+    'peer.typing': '입력 중…',
+    'presence.online': '담당자 접속 중',
+    'presence.inRoom': '담당자가 상담방에 있습니다',
+    'presence.offline': '현재 담당자가 부재중입니다. 메시지를 남겨주시면 확인 후 연락드립니다.'
   },
   ja: {
     'open.label': '無料相談チャットを開く',
@@ -122,7 +127,12 @@ const DICT = {
     'error.unknown': '問題が発生しました。しばらくしてからお試しください。',
 
     'newChat': '新しい相談を開始',
-    'handoff.message': '担当者と相談したいです。'
+    'handoff.message': '担当者と相談したいです。',
+
+    'peer.typing': '入力中…',
+    'presence.online': '担当者がオンラインです',
+    'presence.inRoom': '担当者が相談ルームにいます',
+    'presence.offline': '現在担当者が不在です。メッセージを残していただければ、確認後ご連絡いたします。'
   }
 };
 
