@@ -11,10 +11,15 @@
     "dev:admin": "npm run dev -w apps/admin",
     "build": "npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/admin",
     "test": "npm run test -w apps/api",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config tests/e2e/playwright.config.ts --ui",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose stop postgres"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }
