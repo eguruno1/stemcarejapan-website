@@ -23,3 +23,37 @@ html, body {
 }
 
 a { color: var(--accent); }
+
+/* ---------- 레이아웃 토큰 ---------- */
+:root {
+  --sidebar-w: 300px;
+  --panel-w: 300px;
+  --header-h: 48px;
+}
+
+/* ---------- 공용 요소 ---------- */
+button { font: inherit; }
+
+input, textarea, select {
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: 2px solid rgba(31, 95, 191, 0.35);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
