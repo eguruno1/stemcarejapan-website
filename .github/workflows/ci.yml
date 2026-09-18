@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: stemcare
+          POSTGRES_PASSWORD: stemcare
+          POSTGRES_DB: stemcare_chat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # 실제로 연결되지는 않는다 - vitest.setup.ts 가 모든 테스트 파일에서
+      # DATABASE_URL 을 TEST_DATABASE_URL 값으로 덮어쓴다. 여기 있는 값은
+      # scripts/test-db-url.cjs 의 "테스트 DB 와 개발 DB 는 달라야 한다"
+      # 검사를 통과시키는 용도일 뿐이다 - 두 URL의 DB 이름이 같으면(둘 다
+      # stemcare_chat_test 를 가리키면) 그 검사에서 곧바로 실패한다.
+      DATABASE_URL: postgresql://stemcare:stemcare@localhost:5432/stemcare_chat
+      TEST_DATABASE_URL: postgresql://stemcare:stemcare@localhost:5432/stemcare_chat_test
+      JWT_SECRET: ci-only-secret-that-is-long-enough-for-tests-12345
+      WEBSITE_ORIGIN: http://localhost:8080
+      ADMIN_ORIGIN: http://localhost:3100
+      # OPENAI_API_KEY 를 넣지 않는다.
+      # 테스트가 실제 API 없이 통과하는지 확인하는 것이 목적이다.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build -w packages/shared
+
+      - run: npx prisma generate --schema apps/api/prisma/schema.prisma
+
+      - name: API 테스트
+        run: npm run test -w apps/api
+
+      - name: 관리자 화면 테스트
+        run: npm run test -w apps/admin
+
+      - name: 빌드
+        run: npm run build
+
+      - name: 개인정보가 로그에 남지 않는지 확인
+        run: |
+          # maskPersonalData 테스트가 통과하는지 재확인
+          npx vitest run tests/logger.test.ts --root apps/api
