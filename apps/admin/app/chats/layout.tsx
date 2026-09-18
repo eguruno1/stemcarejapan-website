@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import { ChatRoomList } from '@/components/chat/ChatRoomList';
 import { Button } from '@/components/ui/Button';
 
 export default function ChatsLayout({ children }: { children: React.ReactNode }) {
@@ -62,7 +63,7 @@ export default function ChatsLayout({ children }: { children: React.ReactNode })
             minHeight: 0
           }}
         >
-          <p style={{ padding: 16, fontSize: 12, color: 'var(--text-muted)' }}>상담 목록 준비 중…</p>
+          <ChatRoomList />
         </aside>
 
         <main style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', minHeight: 0 }}>
