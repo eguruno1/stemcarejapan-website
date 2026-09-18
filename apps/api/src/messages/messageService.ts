@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Message, Prisma } from '@prisma/client';
 import type { DetectedLanguage, MessageDTO, SenderType } from '@stemcare/shared';
 import { prisma } from '../db';
 import { conflict } from '../common/errors';
@@ -20,13 +20,16 @@ export interface CreateMessageInput {
 }
 
 /**
- * 메시지를 저장하고 상담방의 lastMessageAt 을 함께 갱신한다.
- * 두 작업을 트랜잭션으로 묶어야 "메시지는 저장됐는데 목록에는 안 뜨는" 상태가 생기지 않는다.
+ * 메시지를 저장하고 상담방의 lastMessageAt 을 함께 갱신한 뒤, DB row 를 그대로 돌려준다.
+ *
+ * HTTP 라우트와 소켓 핸들러가 모두 이 함수 하나만 거친다 — 저장 로직이 두 곳에
+ * 나뉘면 반드시 어긋난다. 소켓 브로드캐스트는 고객용/운영자용 DTO 를 각각
+ * 새로 만들어야 하므로 DTO 가 아니라 row 가 필요해서 이 함수를 따로 둔다.
+ * `createMessage` 는 이 함수에 `toMessageDTO` 하나만 얹은 얇은 래퍼다.
  */
-export async function createMessage(input: CreateMessageInput, tx?: Prisma.TransactionClient): Promise<MessageDTO> {
-  if (!tx) return prisma.$transaction(transaction => createMessage(input, transaction));
+export async function createMessageRow(input: CreateMessageInput, tx?: Prisma.TransactionClient): Promise<Message> {
+  if (!tx) return prisma.$transaction(transaction => createMessageRow(input, transaction));
   const room = await lockRoom(tx, input.chatRoomId);
-  const viewer = input.viewer ?? 'operator';
   if (room.status === 'closed' && input.senderType !== 'system') {
     throw conflict('ROOM_CLOSED', '종료된 상담입니다. 새 상담을 시작해주세요.');
   }
@@ -38,7 +41,7 @@ export async function createMessage(input: CreateMessageInput, tx?: Prisma.Trans
       if (existing.senderType !== input.senderType || existing.senderId !== (input.senderId ?? null)) {
         throw conflict('MESSAGE_ID_CONFLICT', '다른 발신자가 사용한 메시지 ID입니다.');
       }
-      return toMessageDTO(existing, viewer);
+      return existing;
     }
   }
   const message = await tx.message.create({ data: {
@@ -57,7 +60,12 @@ export async function createMessage(input: CreateMessageInput, tx?: Prisma.Trans
     createdAt: new Date(Math.max(Date.now(), (room.lastMessageAt?.getTime() ?? 0) + 1, (room.operatorLastReadAt?.getTime() ?? 0) + 1))
   } });
   await tx.chatRoom.update({ where: { id: room.id }, data: { lastMessageAt: message.createdAt } });
-  return toMessageDTO(message, viewer);
+  return message;
+}
+
+export async function createMessage(input: CreateMessageInput, tx?: Prisma.TransactionClient): Promise<MessageDTO> {
+  const row = await createMessageRow(input, tx);
+  return toMessageDTO(row, input.viewer ?? 'operator');
 }
 
 export async function listMessages(chatRoomId: string, viewer: Viewer, db: Prisma.TransactionClient = prisma): Promise<MessageDTO[]> {

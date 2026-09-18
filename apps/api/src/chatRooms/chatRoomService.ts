@@ -1,4 +1,4 @@
-import type { ChatRoom, Prisma } from '@prisma/client';
+import type { ChatRoom, Message, Prisma } from '@prisma/client';
 import type {
   ChatRoomDetail,
   ChatRoomListItem,
@@ -12,7 +12,7 @@ import { lockRoom } from './roomLock';
 import { conflict, forbidden, notFound, unauthorized } from '../common/errors';
 import { prisma } from '../db';
 import { createVisitorToken, hashVisitorToken } from '../auth/token';
-import { createMessage, listMessages } from '../messages/messageService';
+import { createMessage, createMessageRow, listMessages } from '../messages/messageService';
 import { toChatRoomListItem, toCustomerDTO, type RoomWithRelations } from './chatRoomMapper';
 
 export async function startChat(input: StartChatRequest): Promise<StartChatResponse> {
@@ -191,44 +191,82 @@ export async function getRoomDetailAndMarkRead(roomId: string): Promise<ChatRoom
 
 /* ---------- 배정과 상태 변경 (Task 8) ---------- */
 
-export async function assignRoom(roomId: string, operatorId: string): Promise<ChatRoomDetail> {
-  await prisma.$transaction(async tx => {
+/**
+ * 배정 성공 시 만들어진 시스템 안내 메시지를 함께 돌려준다.
+ * (실시간 브로드캐스트는 이 함수가 아니라 호출부인 HTTP 라우터가 한다 — 아래 설명 참고)
+ *
+ * chatRoomService.ts 는 realtime/socketServer.ts 를 import 하지 않는다.
+ * chatEvents.ts(소켓)가 chatRoomService.ts 를 이미 쓰고 있어서, 거꾸로 이 파일이
+ * getIo() 를 가져오면 순환 참조가 생긴다. 그래서 "무엇이 바뀌었는지"만 돌려주고,
+ * 소켓으로 알릴지 말지는 항상 호출부(HTTP 라우터 / 소켓 핸들러)가 결정한다.
+ */
+export async function assignRoom(
+  roomId: string,
+  operatorId: string
+): Promise<{ room: ChatRoomDetail; notice: Message | null }> {
+  const notice = await prisma.$transaction(async tx => {
     const room = await lockRoom(tx, roomId);
     if (room.assignedOperatorId && room.assignedOperatorId !== operatorId) {
       throw conflict('ALREADY_ASSIGNED', '다른 운영자가 이미 담당 중인 상담입니다.');
     }
+    const isNewAssignment = room.assignedOperatorId !== operatorId;
     await tx.chatRoom.update({ where: { id: roomId }, data: {
       assignedOperatorId: operatorId, status: 'active', closedAt: null
     } });
-    if (room.assignedOperatorId !== operatorId) {
-      await createMessage({ chatRoomId: roomId, senderType: 'system',
-        text: '운영자가 상담에 참여했습니다.', originalLanguage: 'ko' }, tx);
-    }
+    if (!isNewAssignment) return null;
+    return createMessageRow({ chatRoomId: roomId, senderType: 'system',
+      text: '운영자가 상담에 참여했습니다.', originalLanguage: 'ko' }, tx);
   });
 
-  return getRoomDetail(roomId);
+  return { room: await getRoomDetail(roomId), notice };
 }
 
 export async function updateRoomStatus(
   roomId: string,
   status: ChatRoomStatus,
   operatorId: string
-): Promise<ChatRoomDetail> {
-  await prisma.$transaction(async tx => {
+): Promise<{ room: ChatRoomDetail; notice: Message | null }> {
+  const notice = await prisma.$transaction(async tx => {
     const room = await lockRoom(tx, roomId);
-    if (room.status === status) return;
+    if (room.status === status) return null;
     await tx.chatRoom.update({ where: { id: roomId }, data: {
       status,
       closedAt: status === 'closed' ? new Date() : null,
       assignedOperatorId: status === 'active' ? (room.assignedOperatorId ?? operatorId) : room.assignedOperatorId
     } });
-    if (status === 'closed') {
-      await createMessage({ chatRoomId: roomId, senderType: 'system',
-        text: '상담이 종료되었습니다.', originalLanguage: 'ko' }, tx);
-    }
+    if (status !== 'closed') return null;
+    return createMessageRow({ chatRoomId: roomId, senderType: 'system',
+      text: '상담이 종료되었습니다.', originalLanguage: 'ko' }, tx);
   });
 
-  return getRoomDetail(roomId);
+  return { room: await getRoomDetail(roomId), notice };
+}
+
+/**
+ * 고객이 "담당자 연결 요청"을 눌렀을 때. AI 상담(bot) 중일 때만 대기(waiting)로
+ * 올린다 — 이미 대기·진행 중인 방에서 다시 눌러도 안내 메시지가 반복되지 않는다.
+ * (동일 상태 재요청은 기존 메시지를 유지한다는 이 API 전체의 원칙과 같다)
+ */
+export async function requestHandoff(
+  roomId: string
+): Promise<{ status: ChatRoomStatus; assignedOperatorId: string | null; notice: Message | null }> {
+  return prisma.$transaction(async tx => {
+    const room = await lockRoom(tx, roomId);
+    if (room.status === 'closed') {
+      throw conflict('ROOM_CLOSED', '종료된 상담입니다. 새 상담을 시작해주세요.');
+    }
+    if (room.status !== 'bot') {
+      return { status: room.status as ChatRoomStatus, assignedOperatorId: room.assignedOperatorId, notice: null };
+    }
+    await tx.chatRoom.update({ where: { id: roomId }, data: { status: 'waiting' } });
+    const notice = await createMessageRow({
+      chatRoomId: roomId,
+      senderType: 'system',
+      text: '담당자 연결을 요청했습니다. 잠시만 기다려주세요.',
+      originalLanguage: 'ko'
+    }, tx);
+    return { status: 'waiting' as ChatRoomStatus, assignedOperatorId: room.assignedOperatorId, notice };
+  });
 }
 
 /**

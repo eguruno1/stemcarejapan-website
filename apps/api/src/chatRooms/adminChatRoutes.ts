@@ -6,8 +6,11 @@ import { asyncHandler } from '../common/asyncHandler';
 import { notFound } from '../common/errors';
 import { validateBody, validateQuery } from '../common/validate';
 import { prisma } from '../db';
-import { createMessage } from '../messages/messageService';
+import { createMessageRow } from '../messages/messageService';
+import { toMessageDTO } from '../messages/messageMapper';
 import { createNote } from '../notes/noteService';
+import { broadcastMessage, broadcastStatus } from '../realtime/emitters';
+import { getIo } from '../realtime/socketServer';
 import {
   assertRoomOpen,
   assignRoom,
@@ -73,7 +76,14 @@ const NoteSchema = z.object({
 adminChatRoutes.patch(
   '/:roomId/assign',
   asyncHandler(async (req, res) => {
-    const room = await assignRoom(req.params.roomId, req.operator!.operatorId);
+    const { room, notice } = await assignRoom(req.params.roomId, req.operator!.operatorId);
+
+    const io = getIo();
+    if (io) {
+      if (notice) await broadcastMessage(io, room.id, notice);
+      broadcastStatus(io, room.id, room.status, room.assignedOperatorId);
+    }
+
     res.json({ room });
   })
 );
@@ -83,7 +93,14 @@ adminChatRoutes.patch(
   validateBody(StatusSchema),
   asyncHandler(async (req, res) => {
     const { status } = req.body as z.infer<typeof StatusSchema>;
-    const room = await updateRoomStatus(req.params.roomId, status, req.operator!.operatorId);
+    const { room, notice } = await updateRoomStatus(req.params.roomId, status, req.operator!.operatorId);
+
+    const io = getIo();
+    if (io) {
+      if (notice) await broadcastMessage(io, room.id, notice);
+      broadcastStatus(io, room.id, room.status, room.assignedOperatorId);
+    }
+
     res.json({ room });
   })
 );
@@ -100,7 +117,7 @@ adminChatRoutes.post(
 
     const hasTranslation = Boolean(body.translatedText && body.translatedLanguage);
 
-    const message = await createMessage({
+    const row = await createMessageRow({
       chatRoomId: room.id,
       senderType: 'operator',
       senderId: req.operator!.operatorId,
@@ -111,11 +128,13 @@ adminChatRoutes.post(
       // 고객이 실제로 볼 문장: 번역문이 있으면 번역문, 없으면 원문
       visibleText: hasTranslation ? body.translatedText : body.originalText,
       translationStatus: hasTranslation ? 'done' : 'none',
-      clientMessageId: body.clientMessageId ?? null,
-      viewer: 'operator'
+      clientMessageId: body.clientMessageId ?? null
     });
 
-    res.status(201).json({ message });
+    const io = getIo();
+    if (io) await broadcastMessage(io, room.id, row);
+
+    res.status(201).json({ message: toMessageDTO(row, 'operator') });
   })
 );
 

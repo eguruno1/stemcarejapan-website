@@ -4,7 +4,10 @@ import { LANGUAGES, SERVICE_TYPES } from '@stemcare/shared';
 import { asyncHandler } from '../common/asyncHandler';
 import { validateBody } from '../common/validate';
 import { prisma } from '../db';
-import { createMessage, listMessages } from '../messages/messageService';
+import { createMessageRow, listMessages } from '../messages/messageService';
+import { toMessageDTO } from '../messages/messageMapper';
+import { broadcastMessage, notifyOperators } from '../realtime/emitters';
+import { getIo } from '../realtime/socketServer';
 import { assertRoomOpen, authorizeVisitor, startChat } from './chatRoomService';
 
 const StartChatSchema = z.object({
@@ -36,6 +39,10 @@ publicChatRoutes.post(
   validateBody(StartChatSchema),
   asyncHandler(async (req, res) => {
     const result = await startChat(req.body as z.infer<typeof StartChatSchema>);
+
+    const io = getIo();
+    if (io) notifyOperators(io, { roomId: result.roomId, kind: 'chat_started' });
+
     res.status(201).json(result);
   })
 );
@@ -70,16 +77,18 @@ publicChatRoutes.post(
     const body = req.body as z.infer<typeof CustomerMessageSchema>;
     const customer = await prisma.customer.findUniqueOrThrow({ where: { id: room.customerId } });
 
-    const message = await createMessage({
+    const row = await createMessageRow({
       chatRoomId: room.id,
       senderType: 'customer',
       senderId: customer.id,
       text: body.text,
       originalLanguage: customer.preferredLanguage as 'ko' | 'ja',
-      clientMessageId: body.clientMessageId ?? null,
-      viewer: 'customer'
+      clientMessageId: body.clientMessageId ?? null
     });
 
-    res.status(201).json({ message });
+    const io = getIo();
+    if (io) await broadcastMessage(io, room.id, row);
+
+    res.status(201).json({ message: toMessageDTO(row, 'customer') });
   })
 );
