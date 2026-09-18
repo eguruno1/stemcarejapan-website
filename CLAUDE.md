@@ -49,7 +49,8 @@ All content lives in three core files plus an `images/` folder:
 - **`js/main.js`** — Single JS file handling all interactivity: i18n language switching, AOS animation init, sticky nav scroll effect, mobile hamburger menu, smooth scroll, hero particles, counter animation, city tab switching, testimonial slider (auto-play + touch swipe), FAQ accordion, active nav highlighting, contact form modal, floating buttons, and ZIP source download.
 - **`js/chat/`** — 상담 채팅 위젯(Phase 2). ES module 7개로 나뉘어 있고 빌드 도구를 쓰지 않는다.
   `config`(상수) · `i18n`(한/일 문구) · `state`(세션·메시지 + subscribe/notify) ·
-  `api`(fetch 래퍼) · `poller`(3초 폴링, Phase 4에서 Socket.IO로 교체) ·
+  `api`(fetch 래퍼) · `poller`(3초 폴링, socket 연결 실패 시 폴백) ·
+  `socket`(Socket.IO 클라이언트) · `stream`(socket 우선, 실패 시 poller 로 자동 전환) ·
   `render`(DOM·스크롤) · `widget`(진입점). 레이어 규칙: `api.js`는 DOM을 모르고,
   `render.js`는 fetch를 모른다.
 - **`css/chat-widget.css`** — 위젯 채팅 화면 스타일. `style.css` **뒤에** 읽혀야 한다.
@@ -132,7 +133,7 @@ The contact form (`#contact`) collects: name, age, phone, email, disease, packag
 
 ## 상담채팅시스템 (Phase 0~6)
 
-정적 홈페이지와 별개로 `apps/api`(Express; Socket.IO는 Phase 4 예정), `apps/admin`(Next.js),
+정적 홈페이지와 별개로 `apps/api`(Express + Socket.IO), `apps/admin`(Next.js),
 `packages/shared`(공용 타입)가 npm workspace 로 함께 관리된다.
 
 - 실행 방법과 포트 배치: `README-chat.md` 참고

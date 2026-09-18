@@ -110,3 +110,53 @@ npm run db:seed -w apps/api
 응답은 `{ history: CustomerHistoryItem[] }`다. 각 항목은 `roomId`, `status`, `serviceType`, `startedAt`, `closedAt`, `messageCount`를 포함한다. 현재 방을 제외한 동일 `customerId`의 방을 최근 생성순으로 최대 20개 반환한다. 없는 방은 404이며 이력 조회 자체는 읽음 상태를 바꾸지 않는다.
 
 공개 상담 시작은 매번 새 고객을 생성한다. 이름·연락처로 다른 고객 레코드의 방을 자동 병합하지 않는다. 따라서 이 API는 동일 고객 레코드에 연결된 방의 이력을 제공하며 재방문자 식별 기능은 별도 구현이 필요하다.
+
+## Phase 4: 실시간 (Socket.IO)
+
+HTTP API는 그대로 유지된다. Socket.IO는 폴백 없는 환경(방화벽 등)에서도 계속 쓸 수 있도록
+REST를 대체하지 않고 얹는다. 저장 로직은 여전히 `createMessageRow` 한 곳뿐이며, HTTP 라우트도
+소켓 핸들러도 같은 함수를 거친 뒤에만 브로드캐스트한다.
+
+### 연결 인증 (핸드셰이크 `auth`)
+
+| 신원 | 필드 | 비고 |
+|---|---|---|
+| 고객 | `roomId`, `visitorToken` | REST의 `X-Visitor-Token`과 같은 값 |
+| 운영자 | `operatorToken` 또는 관리자 쿠키 | 관리자 앱은 쿠키만 쓴다(`withCredentials: true`) |
+
+인증 실패는 연결 자체를 거부한다(`connect_error`). **`roomId`+`visitorToken`이 함께 오면
+쿠키가 무엇이든 항상 고객으로 인증한다** — 브라우저 쿠키는 포트를 구분하지 않으므로, 운영자로
+로그인해 둔 브라우저로 고객 위젯(다른 포트)을 열면 그 소켓에도 운영자 쿠키가 실려 온다.
+
+### 이벤트 (클라이언트 → 서버)
+
+| 이벤트 | payload | 설명 |
+|---|---|---|
+| `chat:join` | `{ roomId }` | 고객은 자기 방만, 운영자는 아무 방이나 |
+| `chat:message` | `{ roomId, text, clientMessageId }` | HTTP `POST .../messages`와 같은 저장 로직 |
+| `chat:typing` | `{ roomId, isTyping }` | 나를 제외한 같은 방 참가자에게만 전달 |
+| `chat:handoff-request` | `{ roomId, reason? }` | `bot` 상태일 때만 `waiting`으로 전환 (재요청은 무시) |
+
+### 이벤트 (서버 → 클라이언트)
+
+| 이벤트 | payload | 설명 |
+|---|---|---|
+| `chat:joined` | `{ roomId, status, assignedOperatorId, messages }` | join 성공 응답 |
+| `chat:message` | `{ message }` | 고객에게는 `toMessageDTO(row, 'customer')`, 운영자에게는 `'operator'` — 절대 같은 객체를 보내지 않는다 |
+| `chat:message:ack` | `{ clientMessageId, message }` | 보낸 사람 본인에게만 |
+| `chat:status` | `{ roomId, status, assignedOperatorId }` | 배정·상태 변경(HTTP 경유 포함) |
+| `chat:presence` | `{ roomId, operatorOnline, anyOperatorOnline }` | DB에 저장하지 않고 현재 소켓 연결을 세어 계산 |
+| `chat:error` | `{ code, message, clientMessageId? }` | `chat:message`/`chat:handoff-request` 실패 시 원래 요청의 `clientMessageId`를 함께 돌려준다 — 없으면 위젯이 어떤 "전송 중" 말풍선을 실패로 바꿔야 할지 알 수 없다 |
+| `rooms:updated` / `rooms:new` | `{ roomId }` | `operators` 방 전체(운영자 목록 화면 갱신용) |
+
+### unread와 소켓
+
+운영자 소켓이 그 방(`room:<roomId>`)에 join 되어 있는 동안 고객 메시지가 도착하면
+`operatorLastReadAt`을 즉시 갱신한다. 방을 열어둔 채 실시간으로 대화하는 동안 unread 배지가
+계속 올라가는 것을 막기 위해서다.
+
+### 폴백
+
+소켓 연결이 5초 안에 되지 않거나 CDN이 차단되면 두 클라이언트 모두 조용히 REST 폴링으로
+전환한다(고객 위젯 3초, 관리자 목록 5초·상세 3초). 소켓이 살아 있어도 관리자 화면의 폴링은
+안전망으로 계속 돈다.
