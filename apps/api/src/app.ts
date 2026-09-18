@@ -4,6 +4,7 @@ import express, { type Express } from 'express';
 import { config } from './config';
 import { errorHandler, notFound } from './common/errors';
 import { authRoutes } from './auth/authRoutes';
+import { adminChatRoutes } from './chatRooms/adminChatRoutes';
 import { publicChatRoutes } from './chatRooms/publicChatRoutes';
 
 export function createApp(): Express {
@@ -23,6 +24,7 @@ export function createApp(): Express {
   });
 
   app.use('/api/admin/auth', authRoutes);
+  app.use('/api/admin/chat-rooms', adminChatRoutes);
   app.use('/api/public/chat', publicChatRoutes);
 
   // ↓ 라우터는 Task 6~8 에서 여기에 하나씩 추가한다.
