@@ -1,0 +1,10 @@
+.git
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.next-e2e
+test-results
+playwright-report
+*.log
+.DS_Store

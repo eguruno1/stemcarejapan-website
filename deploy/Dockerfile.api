@@ -1,0 +1,49 @@
+# ---------- 빌드 단계 ----------
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# 의존성 설치에 필요한 파일만 먼저 복사한다.
+# 소스가 바뀌어도 이 층은 캐시가 유지되어 빌드가 빨라진다.
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+RUN npm ci --workspaces --include-workspace-root
+
+COPY packages/shared packages/shared
+COPY apps/api apps/api
+
+RUN npm run build -w packages/shared
+RUN npx prisma generate --schema apps/api/prisma/schema.prisma
+RUN npm run build -w apps/api
+
+# ---------- 실행 단계 ----------
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+RUN npm ci --workspaces --include-workspace-root --omit=dev
+# 컨테이너 시작 시 `prisma migrate deploy` 를, 배포 후에는 관리자 계정
+# 시드 스크립트(prisma/seed.ts, DEPLOY.md 4단계)를 실행한다. prisma CLI와
+# tsx 는 apps/api 의 devDependencies 에만 있어 위 --omit=dev 설치에서
+# 빠진다. devDependencies 전체(vitest, supertest 등 테스트 도구)를 그대로
+# 들이는 대신, 잠긴 버전과 정확히 맞춰 이 두 패키지만 따로 설치한다.
+# (@prisma/client 와 버전이 어긋나면 마이그레이션이 실패할 수 있다)
+RUN npm install --no-save prisma@6.19.3 tsx@4.23.13
+
+COPY --from=builder /app/packages/shared/dist packages/shared/dist
+COPY --from=builder /app/apps/api/dist apps/api/dist
+COPY --from=builder /app/apps/api/prisma apps/api/prisma
+COPY --from=builder /app/node_modules/.prisma node_modules/.prisma
+
+# root 로 실행하지 않는다.
+USER node
+
+EXPOSE 4000
+
+# 컨테이너가 시작될 때 마이그레이션을 적용하고 서버를 띄운다.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/server.js"]
