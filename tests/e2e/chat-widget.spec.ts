@@ -177,10 +177,16 @@ test.describe('고객 채팅 위젯', () => {
   });
 
   test('전송에 실패하면 재시도 버튼이 나오고, 다시 시도하면 전송된다', async ({ page }) => {
+    // Phase 4 이후 위젯은 소켓이 연결되면 HTTP 대신 소켓으로 보낸다. 이미
+    // 연결된 소켓은 나중에 page.route() 를 걸어도 끊기지 않으므로, 애초에
+    // 소켓이 붙지 못하게 상담을 시작하기 전부터 막아 HTTP(+폴링)로만
+    // 동작하게 만든다 - 그래야 메시지 전송 실패를 실제로 재현할 수 있다.
+    await page.route('**/socket.io/**', (route) => route.abort());
+
     await openWidget(page);
     await startChat(page);
 
-    // 이제부터 메시지 전송만 실패시킨다.
+    // 이제부터 메시지 전송도 실패시킨다.
     await page.route('**/api/public/chat/*/messages', (route) => route.abort());
 
     const w = widget(page);
@@ -212,7 +218,10 @@ test.describe('고객 채팅 위젯', () => {
       await w.locator('.consult-chat-composer button').click();
       await expect(w.locator('.consult-chat-msg[data-state]')).toHaveCount(0);
     }
-    await expect(w.locator('.consult-chat-msg')).toHaveCount(13);
+    // Phase 5/6 이후로는 첫 인사(AI)나 무응답 시 운영자 전환 안내(system) 가
+    // 함께 쌓일 수 있어 전체 개수는 더 이상 고정값이 아니다 - 이 테스트가
+    // 실제로 확인하려는 건 "고객이 보낸 13건이 다 보이는가" 이므로 그것만 센다.
+    await expect(w.locator('.consult-chat-msg[data-sender="customer"]')).toHaveCount(13);
     await expect
       .poll(async () => thread.evaluate((el) => el.scrollHeight - el.clientHeight))
       .toBeGreaterThan(100);

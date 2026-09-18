@@ -1,5 +1,6 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { test, API, ADMIN, ADMIN_URL } from './fixtures';
+import { sendOperatorReply } from './helpers';
 async function login(page: Page) {
   await page.goto(`${ADMIN_URL}/login`);
   await page.getByLabel('이메일').fill(ADMIN.email);
@@ -26,15 +27,17 @@ test('로그인·배정·답변·메모·종료·설정·로그아웃 전체 흐
   await expect(page.getByTestId('chat-thread').getByText('처음 문의', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '내가 상담하기' }).click();
   await expect(page.getByRole('button', { name: '진행 중으로' })).toHaveCount(0);
-  await page.getByLabel('답변 입력').fill('관리자 화면에서 보낸 답변');
-  await page.getByRole('button', { name: '전송', exact: true }).click();
+  // 이 방의 고객 언어는 일본어(ja)이고 운영자 작성 언어 기본값은 한국어(ko)라
+  // 번역 미리보기를 먼저 거친다 - sendOperatorReply 가 그 흐름을 처리한다.
+  await sendOperatorReply(page, '관리자 화면에서 보낸 답변', '管理画面から送った返信');
   await expect(page.getByTestId('chat-thread').getByText('관리자 화면에서 보낸 답변', { exact: true })).toBeVisible();
   await page.getByLabel('운영자 메모').fill('고객에게 숨길 메모');
   await page.getByRole('button', { name: '메모 저장' }).click();
   await expect(page.getByText('고객에게 숨길 메모', { exact: true })).toBeVisible();
   const customer = await request.get(`${API}/api/public/chat/${session.roomId}`, { headers: { 'X-Visitor-Token': session.visitorToken } });
   const body = await customer.json();
-  expect(JSON.stringify(body)).toContain('관리자 화면에서 보낸 답변');
+  // 고객 화면에는 번역문(또는 운영자가 대신 채운 일본어)만 보인다 - 원문은 숨는다.
+  expect(JSON.stringify(body)).toContain('管理画面から送った返信');
   expect(JSON.stringify(body)).not.toContain('고객에게 숨길 메모');
   await page.reload();
   await expect(page.getByLabel('답변 입력')).toBeVisible();
