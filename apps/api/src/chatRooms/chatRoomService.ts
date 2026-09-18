@@ -188,3 +188,66 @@ export async function markRoomRead(roomId: string): Promise<void> {
     data: { operatorLastReadAt: new Date() }
   });
 }
+
+/* ---------- 배정과 상태 변경 (Task 8) ---------- */
+
+export async function assignRoom(roomId: string, operatorId: string): Promise<ChatRoomDetail> {
+  const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
+  if (!room) throw notFound('상담방을 찾을 수 없습니다.');
+
+  if (room.assignedOperatorId && room.assignedOperatorId !== operatorId) {
+    throw conflict('ALREADY_ASSIGNED', '다른 운영자가 이미 담당 중인 상담입니다.');
+  }
+
+  // 이미 내가 맡은 방이면 시스템 메시지를 또 남기지 않는다.
+  const isNewAssignment = room.assignedOperatorId !== operatorId;
+
+  await prisma.chatRoom.update({
+    where: { id: roomId },
+    data: { assignedOperatorId: operatorId, status: 'active', closedAt: null }
+  });
+
+  if (isNewAssignment) {
+    await createMessage({
+      chatRoomId: roomId,
+      senderType: 'system',
+      text: '운영자가 상담에 참여했습니다.',
+      visibleText: '운영자가 상담에 참여했습니다.',
+      originalLanguage: 'ko'
+    });
+  }
+
+  return getRoomDetail(roomId);
+}
+
+export async function updateRoomStatus(
+  roomId: string,
+  status: ChatRoomStatus,
+  operatorId: string
+): Promise<ChatRoomDetail> {
+  const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
+  if (!room) throw notFound('상담방을 찾을 수 없습니다.');
+
+  await prisma.chatRoom.update({
+    where: { id: roomId },
+    data: {
+      status,
+      // closed 로 갈 때만 종료 시각을 찍고, 다시 열면 지운다.
+      closedAt: status === 'closed' ? new Date() : null,
+      // 운영자가 직접 맡으면서 상태를 바꾸는 경우 담당자도 채워준다.
+      assignedOperatorId: status === 'active' ? (room.assignedOperatorId ?? operatorId) : room.assignedOperatorId
+    }
+  });
+
+  if (status === 'closed') {
+    await createMessage({
+      chatRoomId: roomId,
+      senderType: 'system',
+      text: '상담이 종료되었습니다.',
+      visibleText: '상담이 종료되었습니다.',
+      originalLanguage: 'ko'
+    });
+  }
+
+  return getRoomDetail(roomId);
+}
