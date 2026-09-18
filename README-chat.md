@@ -11,6 +11,16 @@
 | 관리자 화면 | http://localhost:3100 |
 | PostgreSQL | localhost:5434 (컨테이너 내부는 5432) |
 
+## 운영 문서
+
+| 문서 | 내용 |
+|---|---|
+| `CHECKLIST.md` | 배포 전 체크리스트 |
+| `deploy/DEPLOY.md` | 배포 절차 |
+| `deploy/RUNBOOK.md` | 장애 대응 매뉴얼 |
+| `deploy/backup/RESTORE-DRILL.md` | 월 1회 복구 리허설 |
+| `apps/api/API.md` | API 레퍼런스 |
+
 ## 처음 한 번만 하는 준비
 
 1. Node.js 22 LTS 설치 (`node -v` 로 확인)
