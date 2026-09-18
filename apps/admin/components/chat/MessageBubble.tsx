@@ -12,7 +12,13 @@ const TRANSLATION_HINTS: Record<TranslationStatus, string | null> = {
   edited: '운영자가 직접 수정한 번역문입니다.'
 };
 
-export function MessageBubble({ message }: { message: MessageDTO }) {
+export function MessageBubble({
+  message,
+  onRetranslate
+}: {
+  message: MessageDTO;
+  onRetranslate?: (messageId: string) => void;
+}) {
   // 운영자 화면 기준: 고객/AI 는 왼쪽, 운영자(나) 는 오른쪽
   const isOutgoing = message.senderType === 'operator';
   const hint = TRANSLATION_HINTS[message.translationStatus] ?? null;
@@ -71,10 +77,30 @@ export function MessageBubble({ message }: { message: MessageDTO }) {
               marginTop: 6,
               fontSize: 11,
               color: message.translationStatus === 'failed' && isOutgoing ? '#ffd2d2' : undefined,
-              opacity: 0.85
+              opacity: 0.85,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
             }}
           >
             {hint}
+            {message.translationStatus === 'failed' && onRetranslate && (
+              <button
+                type="button"
+                onClick={() => onRetranslate(message.id)}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  font: 'inherit',
+                  color: isOutgoing ? '#ffd2d2' : 'var(--accent)',
+                  textDecoration: 'underline',
+                  cursor: 'pointer'
+                }}
+              >
+                다시 번역
+              </button>
+            )}
           </div>
         )}
       </div>

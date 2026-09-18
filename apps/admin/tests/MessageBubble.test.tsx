@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { MessageDTO } from '@stemcare/shared';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 
 function makeMessage(overrides: Partial<MessageDTO> = {}): MessageDTO {
@@ -80,5 +80,24 @@ describe('MessageBubble (운영자 시점)', () => {
 
     // 로케일에 따라 형식이 달라지므로 숫자가 있는지만 확인한다.
     expect(screen.getByTestId('message-time').textContent).toMatch(/\d/);
+  });
+
+  it('번역 실패 시 재번역 버튼을 누르면 메시지 id 로 콜백을 호출한다', () => {
+    const onRetranslate = vi.fn();
+    render(
+      <MessageBubble
+        message={makeMessage({ id: 'msg-42', translatedText: null, translationStatus: 'failed' })}
+        onRetranslate={onRetranslate}
+      />
+    );
+
+    fireEvent.click(screen.getByText('다시 번역'));
+    expect(onRetranslate).toHaveBeenCalledWith('msg-42');
+  });
+
+  it('실패가 아니면 재번역 버튼을 보여주지 않는다', () => {
+    render(<MessageBubble message={makeMessage()} onRetranslate={vi.fn()} />);
+
+    expect(screen.queryByText('다시 번역')).not.toBeInTheDocument();
   });
 });

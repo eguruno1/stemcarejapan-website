@@ -9,6 +9,7 @@ import { prisma } from '../db';
 import { createMessageRow } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
 import { createNote } from '../notes/noteService';
+import { retryTranslation } from '../ai/translationPipeline';
 import { broadcastMessage, broadcastStatus } from '../realtime/emitters';
 import { getIo } from '../realtime/socketServer';
 import {
@@ -64,6 +65,8 @@ const OperatorMessageSchema = z.object({
   originalLanguage: z.enum(LANGUAGES),
   translatedText: z.string().trim().min(1).max(2000).optional(),
   translatedLanguage: z.enum(LANGUAGES).optional(),
+  /** 운영자가 previewTranslation 이 만들어 준 번역문을 손으로 고쳤는지 */
+  translationEdited: z.boolean().optional(),
   clientMessageId: z.string().trim().min(1).max(100).optional()
 }).refine(body => (body.translatedText !== undefined) === (body.translatedLanguage !== undefined), {
   message: '번역문과 번역 언어를 함께 입력해주세요.', path: ['translatedText']
@@ -116,6 +119,7 @@ adminChatRoutes.post(
     assertRoomOpen(room);
 
     const hasTranslation = Boolean(body.translatedText && body.translatedLanguage);
+    const translationStatus = hasTranslation ? (body.translationEdited ? 'edited' : 'done') : 'none';
 
     const row = await createMessageRow({
       chatRoomId: room.id,
@@ -127,7 +131,7 @@ adminChatRoutes.post(
       translatedLanguage: body.translatedLanguage ?? null,
       // 고객이 실제로 볼 문장: 번역문이 있으면 번역문, 없으면 원문
       visibleText: hasTranslation ? body.translatedText : body.originalText,
-      translationStatus: hasTranslation ? 'done' : 'none',
+      translationStatus,
       clientMessageId: body.clientMessageId ?? null
     });
 
@@ -156,5 +160,20 @@ adminChatRoutes.get(
 
     const history = await listCustomerHistory(room.customerId, room.id);
     res.json({ history });
+  })
+);
+
+adminChatRoutes.post(
+  '/:roomId/messages/:messageId/retranslate',
+  asyncHandler(async (req, res) => {
+    const message = await prisma.message.findUnique({ where: { id: req.params.messageId } });
+    if (!message || message.chatRoomId !== req.params.roomId) {
+      throw notFound('메시지를 찾을 수 없습니다.');
+    }
+
+    await retryTranslation(getIo(), message.id);
+
+    const updated = await prisma.message.findUniqueOrThrow({ where: { id: message.id } });
+    res.json({ message: toMessageDTO(updated, 'operator') });
   })
 );

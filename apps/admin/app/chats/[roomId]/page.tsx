@@ -1,16 +1,26 @@
 'use client';
 
-import { use } from 'react';
+import { use, useCallback } from 'react';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ChatThread } from '@/components/chat/ChatThread';
 import { CustomerSidebar } from '@/components/chat/CustomerSidebar';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useRoomStream } from '@/hooks/useRoomStream';
+import { retranslate } from '@/lib/api';
 
 export default function ChatRoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   // Next.js 15 에서 params 는 Promise 다. use() 로 풀어 쓴다.
   const { roomId } = use(params);
   const { room, loading, error, realtime, peerTyping, applyRoom, appendMessage, appendNote } = useRoomStream(roomId);
+
+  const handleRetranslate = useCallback(
+    (messageId: string) => {
+      void retranslate(roomId, messageId).then(appendMessage).catch(() => {
+        // 실패해도 메시지는 translationStatus:'failed' 그대로 남는다 - 버튼으로 다시 시도할 수 있다.
+      });
+    },
+    [roomId, appendMessage]
+  );
 
   if (loading && !room) {
     return (
@@ -70,12 +80,13 @@ export default function ChatRoomPage({ params }: { params: Promise<{ roomId: str
           )}
         </header>
 
-        <ChatThread messages={room.messages} roomId={room.id} />
+        <ChatThread messages={room.messages} roomId={room.id} onRetranslate={handleRetranslate} />
 
         <ChatComposer
           key={room.id}
           roomId={room.id}
           disabled={room.status === 'closed'}
+          customerLanguage={room.customer.preferredLanguage}
           onSent={appendMessage}
         />
       </section>

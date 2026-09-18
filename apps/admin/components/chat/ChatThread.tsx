@@ -5,7 +5,15 @@ import { useMessageScroller } from '@/hooks/useMessageScroller';
 import { MessageBubble } from './MessageBubble';
 import { SystemMarker } from './SystemMarker';
 
-export function ChatThread({ messages, roomId }: { messages: MessageDTO[]; roomId: string }) {
+export function ChatThread({
+  messages,
+  roomId,
+  onRetranslate
+}: {
+  messages: MessageDTO[];
+  roomId: string;
+  onRetranslate?: (messageId: string) => void;
+}) {
   const { scrollRef, hasNewBelow, newCount, scrollToBottom, onScroll } = useMessageScroller({
     itemCount: messages.length,
     roomId
@@ -38,7 +46,7 @@ export function ChatThread({ messages, roomId }: { messages: MessageDTO[]; roomI
           message.senderType === 'system' ? (
             <SystemMarker key={message.id} text={message.visibleText} time={message.createdAt} />
           ) : (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble key={message.id} message={message} onRetranslate={onRetranslate} />
           )
         )}
       </div>

@@ -139,12 +139,35 @@ export async function sendOperatorMessage(
     originalLanguage: Language;
     translatedText?: string;
     translatedLanguage?: Language;
+    translationEdited?: boolean;
     clientMessageId?: string;
   }
 ): Promise<MessageDTO> {
   const res = await request<{ message: MessageDTO }>(
     `/api/admin/chat-rooms/${encodeURIComponent(roomId)}/messages`,
     { method: 'POST', body }
+  );
+  return res.message;
+}
+
+/* ---------- 번역 (Phase 5) ---------- */
+
+export async function previewTranslation(input: {
+  roomId?: string;
+  text: string;
+  sourceLanguage: Language;
+  targetLanguage: Language;
+}): Promise<{ translatedText: string }> {
+  return request<{ translatedText: string }>('/api/admin/translate/preview', {
+    method: 'POST',
+    body: input
+  });
+}
+
+export async function retranslate(roomId: string, messageId: string): Promise<MessageDTO> {
+  const res = await request<{ message: MessageDTO }>(
+    `/api/admin/chat-rooms/${encodeURIComponent(roomId)}/messages/${encodeURIComponent(messageId)}/retranslate`,
+    { method: 'POST' }
   );
   return res.message;
 }
