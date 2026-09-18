@@ -2,6 +2,7 @@ import type {
   ChatRoomDetail,
   ChatRoomListItem,
   ChatRoomStatus,
+  CustomerHistoryItem,
   Language,
   MessageDTO,
   OperatorDTO,
@@ -140,4 +141,11 @@ export async function createNote(roomId: string, note: string): Promise<Operator
     { method: 'POST', body: { note } }
   );
   return res.note;
+}
+
+export async function fetchCustomerHistory(roomId: string): Promise<CustomerHistoryItem[]> {
+  const res = await request<{ history: CustomerHistoryItem[] }>(
+    `/api/admin/chat-rooms/${encodeURIComponent(roomId)}/customer-history`
+  );
+  return res.history;
 }

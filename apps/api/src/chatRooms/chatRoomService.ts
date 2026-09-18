@@ -3,6 +3,7 @@ import type {
   ChatRoomDetail,
   ChatRoomListItem,
   ChatRoomStatus,
+  CustomerHistoryItem,
   ServiceType,
   StartChatRequest,
   StartChatResponse
@@ -228,4 +229,32 @@ export async function updateRoomStatus(
   });
 
   return getRoomDetail(roomId);
+}
+
+/**
+ * 이 고객의 지난 상담 목록.
+ * 지금 보고 있는 상담방은 제외한다. (오른쪽 패널에 자기 자신이 또 나오면 혼란스럽다)
+ */
+export async function listCustomerHistory(
+  customerId: string,
+  excludeRoomId: string
+): Promise<CustomerHistoryItem[]> {
+  const rooms = await prisma.chatRoom.findMany({
+    where: { customerId, id: { not: excludeRoomId } },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+    include: {
+      // 메시지를 전부 가져오지 않고 DB 에서 COUNT(*) 로 센다.
+      _count: { select: { messages: true } }
+    }
+  });
+
+  return rooms.map((room) => ({
+    roomId: room.id,
+    status: room.status as ChatRoomStatus,
+    serviceType: room.serviceType as ServiceType,
+    startedAt: room.createdAt.toISOString(),
+    closedAt: room.closedAt?.toISOString() ?? null,
+    messageCount: room._count.messages
+  }));
 }

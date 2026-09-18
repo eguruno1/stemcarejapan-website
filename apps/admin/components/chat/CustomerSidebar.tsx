@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import type { ChatRoomDetail, ChatRoomStatus } from '@stemcare/shared';
-import { assignRoom, changeStatus, createNote } from '@/lib/api';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import type { ChatRoomDetail, ChatRoomStatus, CustomerHistoryItem } from '@stemcare/shared';
+import { assignRoom, changeStatus, createNote, fetchCustomerHistory } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDateTime } from '@/lib/format';
@@ -36,6 +37,27 @@ export function CustomerSidebar({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<CustomerHistoryItem[] | null>(null);
+
+  // 상담방이 바뀔 때마다 이력을 다시 불러온다.
+  // cancelled 플래그가 없으면, 운영자가 방을 빠르게 옮길 때 먼저 보낸 요청의
+  // 응답이 늦게 도착해 "이전 고객의 이력"이 현재 화면에 남는다. 개인정보 문제다.
+  useEffect(() => {
+    let cancelled = false;
+    setHistory(null);
+
+    fetchCustomerHistory(room.id)
+      .then((items) => {
+        if (!cancelled) setHistory(items);
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [room.id]);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -109,6 +131,47 @@ export function CustomerSidebar({
         <Row label="희망 서비스" value={serviceLabel(room.serviceType)} />
         <Row label="유입 페이지" value={room.sourcePage ?? '-'} />
         <Row label="상담 시작" value={formatDateTime(room.createdAt)} />
+      </Section>
+
+      <Section title={`이전 상담${history && history.length > 0 ? ` (${history.length})` : ''}`}>
+        {history === null && (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>불러오는 중…</p>
+        )}
+
+        {history?.length === 0 && (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+            이 고객의 첫 상담입니다.
+          </p>
+        )}
+
+        {history && history.length > 0 && (
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {history.map((item) => (
+              <li
+                key={item.roomId}
+                style={{ padding: '6px 0', borderTop: '1px solid var(--border)' }}
+              >
+                <Link
+                  href={`/chats/${item.roomId}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 12,
+                    textDecoration: 'none',
+                    color: 'inherit'
+                  }}
+                >
+                  <StatusBadge status={item.status} />
+                  <span>{serviceLabel(item.serviceType)}</span>
+                  <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 11 }}>
+                    {formatDateTime(item.startedAt)} · {item.messageCount}건
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
 
       <Section title="AI 요약">

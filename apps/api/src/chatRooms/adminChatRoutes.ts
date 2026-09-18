@@ -12,6 +12,7 @@ import {
   assertRoomOpen,
   assignRoom,
   getRoomDetailAndMarkRead,
+  listCustomerHistory,
   listRooms,
   updateRoomStatus
 } from './chatRoomService';
@@ -125,5 +126,16 @@ adminChatRoutes.post(
     const { note } = req.body as z.infer<typeof NoteSchema>;
     const created = await createNote(req.params.roomId, req.operator!.operatorId, note);
     res.status(201).json({ note: created });
+  })
+);
+
+adminChatRoutes.get(
+  '/:roomId/customer-history',
+  asyncHandler(async (req, res) => {
+    const room = await prisma.chatRoom.findUnique({ where: { id: req.params.roomId } });
+    if (!room) throw notFound('상담방을 찾을 수 없습니다.');
+
+    const history = await listCustomerHistory(room.customerId, room.id);
+    res.json({ history });
   })
 );

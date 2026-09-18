@@ -119,3 +119,13 @@ export interface ApiErrorBody {
     details?: unknown;
   };
 }
+
+/** 오른쪽 패널에 보여줄 이 고객의 지난 상담 한 건 */
+export interface CustomerHistoryItem {
+  roomId: string;
+  status: ChatRoomStatus;
+  serviceType: ServiceType;
+  startedAt: string;
+  closedAt: string | null;
+  messageCount: number;
+}
