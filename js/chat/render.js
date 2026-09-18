@@ -1,5 +1,5 @@
 import { SCROLL_THRESHOLD_PX, SERVICE_TYPES } from './config.js';
-import { t } from './i18n.js';
+import { getLang, t } from './i18n.js';
 
 /* ---------- 스크롤 유틸 ---------- */
 
@@ -13,26 +13,37 @@ export function scrollToBottom(scrollEl, behavior = 'auto') {
   scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior });
 }
 
-/* ---------- HTML 이스케이프 ---------- */
-
-/**
- * 사전 문구는 우리가 쓴 것이지만, innerHTML 로 넣는 값은 예외 없이 이 함수를 거친다.
- * 고객이 입력한 문장은 innerHTML 을 쓰지 않고 textContent 로만 넣는다.
- */
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 /* ---------- 위젯 뼈대 만들기 ---------- */
 
-function serviceOptions(preselected) {
+/**
+ * 정적 문구는 전부 data-i18n 속성으로 표시해두고 여기서 한 번에 채운다.
+ * 페이지의 언어 전환 버튼이 <html lang> 을 바꿔도 이 함수만 다시 부르면
+ * 위젯 전체가 같은 언어로 맞춰진다. (한국어/일본어가 섞이지 않게)
+ */
+export function applyStaticLabels(elements) {
+  const root = elements.root;
+
+  for (const el of root.querySelectorAll('[data-i18n]')) {
+    el.textContent = t(el.dataset.i18n);
+  }
+  for (const el of root.querySelectorAll('[data-i18n-placeholder]')) {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  }
+  for (const el of root.querySelectorAll('[data-i18n-aria]')) {
+    el.setAttribute('aria-label', t(el.dataset.i18nAria));
+  }
+
+  // 여는/닫는 라벨은 현재 열림 상태에 따라 달라진다.
+  const isOpen = root.classList.contains('open');
+  elements.toggle.setAttribute('aria-label', isOpen ? t('close.label') : t('open.label'));
+}
+
+function serviceOptionsHtml(preselected) {
   return ['', ...SERVICE_TYPES]
     .map((value) => {
-      const label = value === '' ? t('field.service.placeholder') : t(`service.${value}`);
+      const key = value === '' ? 'field.service.placeholder' : `service.${value}`;
       const selected = value === preselected ? ' selected' : '';
-      return `<option value="${value}"${selected}>${escapeHtml(label)}</option>`;
+      return `<option value="${value}" data-i18n="${key}"${selected}></option>`;
     })
     .join('');
 }
@@ -44,58 +55,58 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
     <section class="consult-chat-panel" id="consult-chat-panel" aria-live="polite">
       <div class="consult-chat-head">
         <div>
-          <span>${escapeHtml(t('badge'))}</span>
-          <h2>${escapeHtml(t('title'))}</h2>
+          <span data-i18n="badge"></span>
+          <h2 data-i18n="title"></h2>
         </div>
-        <button type="button" class="consult-chat-close" aria-label="${escapeHtml(t('close.label'))}">
+        <button type="button" class="consult-chat-close" data-i18n-aria="close.label">
           <i class="fas fa-times" aria-hidden="true"></i>
         </button>
       </div>
 
       <!-- 화면 A: 상담 시작 폼 -->
       <div class="consult-chat-stage" data-stage="form">
-        <p class="consult-chat-intro">${escapeHtml(t('intro'))}</p>
+        <p class="consult-chat-intro" data-i18n="intro"></p>
         <form class="consult-chat-form" novalidate>
           <label>
-            <span>${escapeHtml(t('field.service'))}</span>
-            <select name="serviceType">${serviceOptions(defaultService)}</select>
+            <span data-i18n="field.service"></span>
+            <select name="serviceType">${serviceOptionsHtml(defaultService)}</select>
           </label>
           <label>
-            <span>${escapeHtml(t('field.name'))}</span>
-            <input type="text" name="name" autocomplete="name" placeholder="${escapeHtml(t('field.name.placeholder'))}" />
+            <span data-i18n="field.name"></span>
+            <input type="text" name="name" autocomplete="name" data-i18n-placeholder="field.name.placeholder" />
           </label>
           <label>
-            <span>${escapeHtml(t('field.phone'))}</span>
-            <input type="tel" name="phone" autocomplete="tel" placeholder="${escapeHtml(t('field.phone.placeholder'))}" />
+            <span data-i18n="field.phone"></span>
+            <input type="tel" name="phone" autocomplete="tel" data-i18n-placeholder="field.phone.placeholder" />
           </label>
           <label>
-            <span>${escapeHtml(t('field.email'))}</span>
-            <input type="email" name="email" autocomplete="email" placeholder="${escapeHtml(t('field.email.placeholder'))}" />
+            <span data-i18n="field.email"></span>
+            <input type="email" name="email" autocomplete="email" data-i18n-placeholder="field.email.placeholder" />
           </label>
           <label>
-            <span>${escapeHtml(t('field.language'))}</span>
+            <span data-i18n="field.language"></span>
             <select name="preferredLanguage">
-              <option value="ko"${defaultLanguage === 'ko' ? ' selected' : ''}>${escapeHtml(t('language.ko'))}</option>
-              <option value="ja"${defaultLanguage === 'ja' ? ' selected' : ''}>${escapeHtml(t('language.ja'))}</option>
+              <option value="ko" data-i18n="language.ko"${defaultLanguage === 'ko' ? ' selected' : ''}></option>
+              <option value="ja" data-i18n="language.ja"${defaultLanguage === 'ja' ? ' selected' : ''}></option>
             </select>
           </label>
           <label>
-            <span>${escapeHtml(t('field.message'))}</span>
-            <textarea name="message" rows="3" placeholder="${escapeHtml(t('field.message.placeholder'))}"></textarea>
+            <span data-i18n="field.message"></span>
+            <textarea name="message" rows="3" data-i18n-placeholder="field.message.placeholder"></textarea>
           </label>
 
           <div class="consult-chat-privacy">
             <input type="checkbox" name="privacyAgreed" id="scj-privacy" />
             <label for="scj-privacy">
-              ${escapeHtml(t('privacy.label'))}
-              <small>${escapeHtml(t('privacy.detail'))}</small>
+              <span data-i18n="privacy.label"></span>
+              <small data-i18n="privacy.detail"></small>
             </label>
           </div>
 
           <p class="consult-chat-status" role="status"></p>
           <button type="submit" class="consult-chat-submit">
             <i class="fas fa-paper-plane" aria-hidden="true"></i>
-            <span data-role="submit-label">${escapeHtml(t('submit.start'))}</span>
+            <span data-role="submit-label" data-i18n="submit.start"></span>
           </button>
         </form>
       </div>
@@ -104,33 +115,32 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
       <div class="consult-chat-stage" data-stage="chat" hidden>
         <div class="consult-chat-statusbar" data-status="bot">
           <span class="dot"></span>
-          <span data-role="status-label">${escapeHtml(t('status.bot'))}</span>
-          <span class="reconnecting" data-role="reconnecting" hidden>${escapeHtml(t('error.network'))}</span>
+          <span data-role="status-label" data-i18n="status.bot"></span>
+          <span class="reconnecting" data-role="reconnecting" data-i18n="error.network" hidden></span>
         </div>
 
         <div class="consult-chat-threadwrap">
           <div class="consult-chat-thread" data-role="thread" tabindex="0"></div>
-          <button type="button" class="consult-chat-newmsg" data-role="newmsg" hidden>
-            ${escapeHtml(t('newMessages'))}
-          </button>
+          <button type="button" class="consult-chat-newmsg" data-role="newmsg"
+                  data-i18n="newMessages" hidden></button>
         </div>
 
         <form class="consult-chat-composer">
-          <textarea name="text" rows="1" placeholder="${escapeHtml(t('composer.placeholder'))}"></textarea>
-          <button type="submit">${escapeHtml(t('composer.send'))}</button>
+          <textarea name="text" rows="1" data-i18n-placeholder="composer.placeholder"></textarea>
+          <button type="submit" data-i18n="composer.send"></button>
         </form>
 
         <div class="consult-chat-actions">
-          <button type="button" data-role="handoff">${escapeHtml(t('handoff'))}</button>
-          <button type="button" data-role="new-chat">${escapeHtml(t('newChat'))}</button>
+          <button type="button" data-role="handoff" data-i18n="handoff"></button>
+          <button type="button" data-role="new-chat" data-i18n="newChat"></button>
         </div>
       </div>
     </section>
 
     <button type="button" class="consult-chat-toggle"
-            aria-label="${escapeHtml(t('open.label'))}" aria-expanded="false" aria-controls="consult-chat-panel">
+            aria-expanded="false" aria-controls="consult-chat-panel">
       <i class="fas fa-comments" aria-hidden="true"></i>
-      <span>${escapeHtml(t('badge'))}</span>
+      <span data-i18n="badge"></span>
     </button>
   `;
 
@@ -158,6 +168,8 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
     newChatButton: root.querySelector('[data-role="new-chat"]')
   };
 
+  applyStaticLabels(elements);
+
   return { root, elements };
 }
 
@@ -176,10 +188,12 @@ function messageNode(message) {
   if (message.senderType !== 'system') {
     const meta = document.createElement('span');
     meta.className = 'meta';
-    meta.textContent = new Date(message.createdAt).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    // 브라우저 지역설정이 아니라 상담 언어를 따른다.
+    // (일본어 화면에 '오전 10:15' 가 섞여 나오지 않게)
+    meta.textContent = new Date(message.createdAt).toLocaleTimeString(
+      getLang() === 'ja' ? 'ja-JP' : 'ko-KR',
+      { hour: '2-digit', minute: '2-digit' }
+    );
     node.appendChild(meta);
   }
 
