@@ -4,7 +4,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    // 테스트 간 DB 충돌을 막기 위해 한 번에 하나씩 실행한다.
-    fileParallelism: false
+    setupFiles: ['./vitest.setup.ts'],
+    // 여러 테스트 파일이 같은 DB를 동시에 지우면 서로 방해한다. 순차 실행한다.
+    fileParallelism: false,
+    testTimeout: 15000
   }
 });
