@@ -47,7 +47,9 @@ npm run dev:admin
 | 목적 | 명령 |
 |---|---|
 | API 테스트 실행 | `npm run test -w apps/api` |
-| 위젯 E2E 테스트 | `npm run test:e2e` (web·postgres·API 가 모두 떠 있어야 한다) |
+| 고객·관리자 E2E | `npm run test:e2e` (PostgreSQL만 사전 실행) |
+| 관리자 단위·상호작용 테스트 | `npm run test:admin` |
+| 위젯 상태·폴링·입력 테스트 | `npm run test:widget` |
 | E2E 를 눈으로 보며 디버깅 | `npm run test:e2e:ui` |
 | DB 컨테이너 시작 | `npm run db:up` |
 | DB 완전 초기화 | `docker compose down -v && docker compose up -d postgres` |
@@ -93,6 +95,26 @@ npm run dev:admin
 - 관리자도 루트 `.env`를 읽는다. `NEXT_PUBLIC_API_URL` 변경 후 개발 서버를 재시작하고 배포용 빌드는 다시 생성한다.
 - API·shared는 CommonJS이며 관리자 앱은 Next.js의 `module: esnext`, `moduleResolution: bundler` 설정을 유지한다.
 - `npm test`는 별도 테스트 DB만 초기화한다. `TEST_DATABASE_URL`은 필수이며 DB 이름은 `_test`로 끝나고 개발 DB와 달라야 한다. 직접 Vitest를 실행해도 같은 검사가 적용된다.
-- 현재 관리자 화면은 API 연결 확인 화면이다. 고객 위젯·운영자 업무 화면·Socket.IO·AI 기능은 Phase 2~5에서 구현한다.
+- Phase 0 당시 관리자는 API 연결 확인 화면이었다. 현재 Phase 2 고객 위젯과 Phase 3 관리자 업무 화면이 구현되었으며 Socket.IO·AI는 Phase 4·5 범위다.
 - 초기 관리자 비밀번호 변경 UI는 아직 없다. 운영용 초기 계정은 seed 전에 `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`를 지정한다. seed 재실행은 기존 계정의 비밀번호를 바꾸지 않는다.
 - 완료 내역과 검증 근거는 `docs/plans/working/`의 Phase 0·1 문서에 기록한다. `docs/`는 현재 Git 제외 대상이다.
+
+## Phase 2·3 검토 반영 (2026-09-18)
+
+- `/`, `/stemcell/`, `/korea-travel/` 모두 상담 시작 폼을 제공한다. 서비스 페이지는 해당 분야를 미리 선택한다.
+- 위젯은 3초, 관리자 상세는 3초, 목록은 5초마다 폴링한다. 네트워크 왕복·백그라운드 탭·서버 오류 때문에 실제 표시까지 정확히 3초를 보장하지는 않는다.
+- 일시적인 서버 오류는 고객 세션을 유지한 채 재연결한다. 401/403/404일 때만 세션 만료로 처리한다.
+- 고객·관리자 모두 IME 입력 확정 Enter를 전송으로 취급하지 않는다. 관리자 전송 실패 후 같은 본문·언어로 재시도하면 같은 메시지 ID를 사용한다.
+- 자동 스크롤은 갱신 전 맨 아래 100px 이내일 때만 한다. 이전 내용을 읽는 중에는 직접 전송·패널 재열기도 위치를 유지하며, 새 메시지 버튼으로 최신 위치에 이동한다.
+- 관리자 API의 401은 인증 상태를 해제한다. 로그아웃 요청 실패는 오류로 표시하며 성공했다고 가장하지 않는다.
+- 이전 상담은 **동일 customerId**의 다른 방 최대 20건이다. 현재 공개 상담 시작은 새 customerId를 생성하므로 이름·연락처가 같다고 자동으로 묶지 않는다. 안전한 재방문 고객 식별·연결은 별도 후속 설계가 필요하다.
+- 담당자 연결 버튼은 현재 요청 문장을 전송한다. 자동 대기 전환·AI 중단·운영시간 처리는 Phase 5 범위다.
+- 설정 화면은 계정 확인·로그아웃만 제공한다. 번역·요약은 기존 저장값을 표시하며 자동 생성하지 않는다.
+
+### E2E 실행 환경
+
+`npm run test:e2e`는 shared/API를 빌드하고 테스트용 홈페이지(127.0.0.1:8081), API(4001), 관리자(3101)를 자동 실행·종료한다. 일반 개발 서버를 재사용하지 않는다. 관리자 테스트 산출물은 `.next-e2e/`로 분리한다.
+
+`.env`의 `TEST_DATABASE_URL`이 필요하며 Phase 1과 동일한 안전 검사를 적용한다. 테스트 전용 운영자를 upsert하고 테스트 상담을 이 DB에 생성한다. API 테스트와 같은 DB를 사용하므로 **동시에 실행하지 않는다**. 개발 DB의 seed 계정이나 비밀번호에는 의존하지 않는다. Chromium 설치가 필요하면 `npx playwright install chromium`을 실행한다.
+
+위젯 API 기본 주소는 localhost 환경의 4000 포트, 그 외에는 같은 출처다. 필요할 때 모듈 로드 전에 `window.STEMCARE_CHAT_API_URL`을 설정할 수 있고, E2E는 이를 이용해 테스트 API를 지정한다. 실제 배포에서는 접속 가능한 API와 CORS 설정을 먼저 준비해야 한다.

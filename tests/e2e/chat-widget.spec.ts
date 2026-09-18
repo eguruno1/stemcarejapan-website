@@ -1,7 +1,6 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test, API, ADMIN } from './fixtures';
 
-const API = 'http://localhost:4000';
-const ADMIN = { email: 'admin@stemcarejapan.local', password: 'change-me-1234' };
 
 /**
  * korea-travel 페이지에는 페이지 자체의 상담 폼이 따로 있고,
@@ -91,7 +90,7 @@ test.describe('고객 채팅 위젯', () => {
 
     await w.locator('.consult-chat-submit').click();
 
-    await expect(w.locator('.consult-chat-status')).toContainText('連絡先');
+    await expect(w.locator('.consult-chat-status')).toContainText('お名前');
   });
 
   test('상담 분야를 고르지 않으면 오류가 표시된다', async ({ page }) => {
@@ -223,6 +222,15 @@ test.describe('고객 채팅 위젯', () => {
       el.scrollTop = 0;
     });
     const before = await thread.evaluate((el) => el.scrollTop);
+    // 직접 보내거나 패널을 다시 열 때도 읽던 위치를 강제로 내리지 않는다.
+    await w.locator('.consult-chat-composer textarea').fill('過去を読みながら送信');
+    await w.locator('.consult-chat-composer button').click();
+    await expect(w.locator('.consult-chat-msg[data-state]')).toHaveCount(0);
+    expect(await thread.evaluate((el) => el.scrollTop)).toBe(before);
+    await w.locator('.consult-chat-close').click();
+    await w.locator('.consult-chat-toggle').click();
+    expect(await thread.evaluate((el) => el.scrollTop)).toBe(before);
+
 
     const roomId = await currentRoomId(page);
     await operatorReply(request, roomId, 'スクロール確認用の新着メッセージです。');

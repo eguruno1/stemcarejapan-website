@@ -102,3 +102,11 @@ npm run db:seed -w apps/api
 - 읽음 상태는 현재 방 단위로 공유한다. 운영자별 읽음 기록은 구현 범위 밖이다.
 - 잘못된 JSON은 `400 INVALID_JSON`, 1MB 초과 요청은 `413 PAYLOAD_TOO_LARGE`다.
 - 메시지 ID가 다른 발신자와 충돌하면 `409 MESSAGE_ID_CONFLICT`다.
+
+## Phase 3: 고객별 이전 상담 이력
+
+`GET /api/admin/chat-rooms/:roomId/customer-history` (운영자 쿠키 인증 필요)
+
+응답은 `{ history: CustomerHistoryItem[] }`다. 각 항목은 `roomId`, `status`, `serviceType`, `startedAt`, `closedAt`, `messageCount`를 포함한다. 현재 방을 제외한 동일 `customerId`의 방을 최근 생성순으로 최대 20개 반환한다. 없는 방은 404이며 이력 조회 자체는 읽음 상태를 바꾸지 않는다.
+
+공개 상담 시작은 매번 새 고객을 생성한다. 이름·연락처로 다른 고객 레코드의 방을 자동 병합하지 않는다. 따라서 이 API는 동일 고객 레코드에 연결된 방의 이력을 제공하며 재방문자 식별 기능은 별도 구현이 필요하다.

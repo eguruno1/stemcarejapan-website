@@ -142,6 +142,7 @@ The contact form (`#contact`) collects: name, age, phone, email, disease, packag
   vitest 는 `apps/api` 와 **같은 메이저**로 유지한다. 버전이 갈리면 jest-dom 이
   실행 중이 아닌 쪽 `expect` 를 확장해 모든 matcher 가 죽는다.
 - 관리자 화면의 모든 API 호출은 `credentials: 'include'` 가 필요하다. (`apps/admin/lib/api.ts`)
-- 고객 위젯 E2E: `npm run test:e2e` (`tests/e2e/`, Playwright). web·postgres·API 가 떠 있어야 한다.
+- 고객·관리자 E2E: `npm run test:e2e` (`tests/e2e/`, Playwright). PostgreSQL만 사전 실행하며 TEST_DATABASE_URL과 전용 8081/4001/3101 서버를 사용한다.
+- 위젯 회귀 테스트: `npm run test:widget`. 관리자 단위·상호작용 테스트: `npm run test:admin`.
 - 위젯 문구는 전부 `data-i18n` 속성으로 표시한다. 페이지가 `<html lang>` 을 바꾸면
   위젯이 MutationObserver 로 감지해 같은 언어로 다시 칠한다.
