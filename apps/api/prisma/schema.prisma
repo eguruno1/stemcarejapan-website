@@ -32,6 +32,7 @@ model Customer {
   serviceType       String    @map("service_type")
   memo              String?
   privacyAgreedAt   DateTime? @map("privacy_agreed_at")
+  pseudonymizedAt   DateTime? @map("pseudonymized_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
