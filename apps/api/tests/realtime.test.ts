@@ -13,9 +13,17 @@ let baseUrl: string;
 const openSockets: ClientSocket[] = [];
 
 /** 테스트용 소켓을 열고, 연결 성공/실패를 기다린다. */
-function connect(auth: Record<string, unknown>): Promise<ClientSocket> {
+function connect(
+  auth: Record<string, unknown>,
+  extraHeaders?: Record<string, string>
+): Promise<ClientSocket> {
   return new Promise((resolve, reject) => {
-    const socket = ioClient(baseUrl, { auth, transports: ['websocket'], reconnection: false });
+    const socket = ioClient(baseUrl, {
+      auth,
+      transports: ['websocket'],
+      reconnection: false,
+      ...(extraHeaders ? { extraHeaders } : {})
+    });
     openSockets.push(socket);
     socket.on('connect', () => resolve(socket));
     socket.on('connect_error', (err) => reject(err));
@@ -91,6 +99,30 @@ describe('소켓 연결 인증', () => {
     const token = signOperatorToken({ operatorId: operator.id, role: 'operator' });
 
     await expect(connect({ operatorToken: token })).rejects.toThrow();
+  });
+
+  it('운영자 쿠키를 들고 있어도 roomId+visitorToken 이 있으면 고객으로 인증된다', async () => {
+    // 브라우저 쿠키는 포트를 구분하지 않는다. 관리자 화면에 로그인해 둔 브라우저로
+    // 고객 위젯(다른 포트)을 열면, 그 소켓 연결에도 운영자 쿠키가 실려 온다.
+    // roomId/visitorToken 이 함께 왔다면 "나는 이 상담의 고객이다"라는 뜻이 더
+    // 명확하므로, 쿠키가 뭐가 와 있든 고객으로 인증해야 한다.
+    const { operator } = await createOperator();
+    const operatorToken = signOperatorToken({ operatorId: operator.id, role: 'operator' });
+    const { room, visitorToken } = await createCustomerWithRoom();
+
+    const socket = await connect(
+      { roomId: room.id, visitorToken },
+      { cookie: `scj_admin_token=${operatorToken}` }
+    );
+    socket.emit('chat:join', { roomId: room.id });
+    const payload = await waitFor<{ messages: Array<{ senderType: string }> }>(socket, 'chat:joined');
+
+    // 이 소켓으로 메시지를 보내면 고객 메시지로 저장돼야 한다 - 운영자 메시지가 아니다.
+    const ack = waitFor<{ message: { senderType: string } }>(socket, 'chat:message:ack');
+    socket.emit('chat:message', { roomId: room.id, text: '고객입니다', clientMessageId: 'cookie-leak-1' });
+
+    expect((await ack).message.senderType).toBe('customer');
+    void payload;
   });
 });
 

@@ -45,45 +45,53 @@ export async function authenticateSocket(
 ): Promise<void> {
   const auth = socket.handshake.auth ?? {};
 
-  // 1) 운영자: auth.operatorToken 또는 쿠키
-  const operatorToken =
-    (typeof auth.operatorToken === 'string' ? auth.operatorToken : null) ??
-    readCookie(socket.handshake.headers.cookie, config.adminCookieName);
+  // 1) 고객: auth.roomId + auth.visitorToken 를 먼저 확인한다.
+  //
+  // 쿠키는 포트를 구분하지 않는다 — `localhost:3100`(관리자)에 로그인하면 그
+  // 쿠키가 `localhost:8080`(고객 위젯)에서 여는 소켓 연결에도 똑같이 실린다.
+  // 운영자 쿠키를 먼저 검사하면, 관리자에 로그인해 둔 브라우저로 고객 위젯을
+  // 열었을 때 그 연결이 "운영자"로 인증돼 버린다 — 고객이 보낸 메시지가
+  // senderType:'operator' 로 저장되고, 고객에게 운영자용(번역 등 내부 정보 포함)
+  // DTO 가 그대로 나간다. roomId/visitorToken 이 둘 다 있으면 "나는 이 상담의
+  // 고객이다"라는 뜻이 명확하므로, 어떤 쿠키가 실려 왔든 고객으로 인증한다.
+  const roomId = typeof auth.roomId === 'string' ? auth.roomId : null;
+  const visitorToken = typeof auth.visitorToken === 'string' ? auth.visitorToken : null;
 
-  if (operatorToken) {
-    const payload = verifyOperatorToken(operatorToken);
-    if (!payload) {
+  if (roomId && visitorToken) {
+    const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
+    if (!room || room.visitorTokenHash !== hashVisitorToken(visitorToken)) {
       next(new Error('UNAUTHORIZED'));
       return;
     }
 
-    // HTTP 의 requireOperator 와 같은 기준: 삭제·비활성화된 계정은 유효한 JWT 로도 거부한다.
-    const operator = await prisma.operator.findUnique({ where: { id: payload.operatorId } });
-    if (!operator || !operator.isActive) {
-      next(new Error('UNAUTHORIZED'));
-      return;
-    }
-
-    setIdentity(socket, { kind: 'operator', operatorId: operator.id, role: payload.role });
+    setIdentity(socket, { kind: 'customer', roomId: room.id, customerId: room.customerId });
     next();
     return;
   }
 
-  // 2) 고객: auth.roomId + auth.visitorToken
-  const roomId = typeof auth.roomId === 'string' ? auth.roomId : null;
-  const visitorToken = typeof auth.visitorToken === 'string' ? auth.visitorToken : null;
+  // 2) 운영자: auth.operatorToken(테스트·명시적 토큰 연결) 또는 쿠키(실제 관리자 앱)
+  const operatorToken =
+    (typeof auth.operatorToken === 'string' ? auth.operatorToken : null) ??
+    readCookie(socket.handshake.headers.cookie, config.adminCookieName);
 
-  if (!roomId || !visitorToken) {
+  if (!operatorToken) {
     next(new Error('UNAUTHORIZED'));
     return;
   }
 
-  const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
-  if (!room || room.visitorTokenHash !== hashVisitorToken(visitorToken)) {
+  const payload = verifyOperatorToken(operatorToken);
+  if (!payload) {
     next(new Error('UNAUTHORIZED'));
     return;
   }
 
-  setIdentity(socket, { kind: 'customer', roomId: room.id, customerId: room.customerId });
+  // HTTP 의 requireOperator 와 같은 기준: 삭제·비활성화된 계정은 유효한 JWT 로도 거부한다.
+  const operator = await prisma.operator.findUnique({ where: { id: payload.operatorId } });
+  if (!operator || !operator.isActive) {
+    next(new Error('UNAUTHORIZED'));
+    return;
+  }
+
+  setIdentity(socket, { kind: 'operator', operatorId: operator.id, role: payload.role });
   next();
 }
