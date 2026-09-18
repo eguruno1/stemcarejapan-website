@@ -95,8 +95,10 @@ docker compose -f docker-compose.prod.yml logs -f nginx
 
 ## 백업/복구
 
-`deploy/backup/backup.sh` 가 `backup` 컨테이너에서 주기적으로 덤프를 만든다.
-자세한 절차와 복구 방법은 [`backup/README.md`](./backup/README.md) 를 참고한다.
+`deploy/backup/backup.sh` 가 `backup` 컨테이너에서 매일 새벽 3시(+ 시작 시
+1회) 덤프를 만들어 `/backups` 에 7일치를 보관한다. 복구는
+`deploy/backup/restore.sh <백업파일>` 로 한다. 정기 복구 리허설 절차는
+[`backup/RESTORE-DRILL.md`](./backup/RESTORE-DRILL.md) 를 참고한다.
 **"설정했다"가 아니라 "복구해봤다"로 확인한다** - 배포 직후 한 번은 반드시
 `restore.sh` 를 실제로 실행해 복구가 되는지 확인한다.
 
