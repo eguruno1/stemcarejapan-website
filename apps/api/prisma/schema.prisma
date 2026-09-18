@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Operator {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         String   @default("operator")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  assignedRooms ChatRoom[]
+  notes         OperatorNote[]
+
+  @@map("operators")
+}
+
+model Customer {
+  id                String    @id @default(uuid())
+  name              String
+  phone             String
+  email             String?
+  preferredLanguage String    @default("ja") @map("preferred_language")
+  serviceType       String    @map("service_type")
+  memo              String?
+  privacyAgreedAt   DateTime? @map("privacy_agreed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  chatRooms ChatRoom[]
+
+  @@map("customers")
+}
+
+model ChatRoom {
+  id                 String    @id @default(uuid())
+  customerId         String    @map("customer_id")
+  assignedOperatorId String?   @map("assigned_operator_id")
+  status             String    @default("bot")
+  sourcePage         String?   @map("source_page")
+  serviceType        String    @map("service_type")
+  // visitorToken 자체는 저장하지 않고 SHA-256 해시만 저장한다.
+  visitorTokenHash   String    @map("visitor_token_hash")
+  // 운영자가 이 방을 마지막으로 연 시각. unread 계산에 쓴다.
+  operatorLastReadAt DateTime? @map("operator_last_read_at")
+  lastMessageAt      DateTime? @map("last_message_at")
+  closedAt           DateTime? @map("closed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  customer         Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assignedOperator Operator?      @relation(fields: [assignedOperatorId], references: [id], onDelete: SetNull)
+  messages         Message[]
+  summaries        ChatSummary[]
+  notes            OperatorNote[]
+
+  @@index([status, lastMessageAt])
+  @@index([customerId])
+  @@map("chat_rooms")
+}
+
+model Message {
+  id                 String   @id @default(uuid())
+  chatRoomId         String   @map("chat_room_id")
+  senderType         String   @map("sender_type")
+  senderId           String?  @map("sender_id")
+  messageType        String   @default("text") @map("message_type")
+  originalLanguage   String   @default("unknown") @map("original_language")
+  originalText       String   @map("original_text")
+  translatedLanguage String?  @map("translated_language")
+  translatedText     String?  @map("translated_text")
+  visibleText        String   @map("visible_text")
+  translationStatus  String   @default("none") @map("translation_status")
+  clientMessageId    String?  @map("client_message_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  // 같은 방 안에서 clientMessageId 중복 저장을 DB 차원에서 막는다. (Phase 4 재전송 대비)
+  @@unique([chatRoomId, clientMessageId])
+  @@index([chatRoomId, createdAt])
+  @@map("messages")
+}
+
+model ChatSummary {
+  id            String   @id @default(uuid())
+  chatRoomId    String   @map("chat_room_id")
+  summary       String
+  customerNeeds String?  @map("customer_needs")
+  nextAction    String?  @map("next_action")
+  riskFlags     String[] @default([]) @map("risk_flags")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@index([chatRoomId, createdAt])
+  @@map("chat_summaries")
+}
+
+model OperatorNote {
+  id         String   @id @default(uuid())
+  chatRoomId String   @map("chat_room_id")
+  operatorId String   @map("operator_id")
+  note       String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([chatRoomId, createdAt])
+  @@map("operator_notes")
+}

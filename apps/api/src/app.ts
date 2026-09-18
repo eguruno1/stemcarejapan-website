@@ -1,6 +1,11 @@
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import express, { type Express, type NextFunction, type Request, type Response } from 'express';
+import express, { type Express } from 'express';
 import { config } from './config';
+import { errorHandler, notFound } from './common/errors';
+import { authRoutes } from './auth/authRoutes';
+import { adminChatRoutes } from './chatRooms/adminChatRoutes';
+import { publicChatRoutes } from './chatRooms/publicChatRoutes';
 
 export function createApp(): Express {
   const app = express();
@@ -12,25 +17,20 @@ export function createApp(): Express {
     })
   );
   app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser());
 
-  app.get('/health', (_req: Request, res: Response) => {
+  app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'stemcare-chat-api' });
   });
 
-  // 등록된 라우터에 걸리지 않은 모든 요청
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json({
-      error: { code: 'NOT_FOUND', message: '요청한 경로를 찾을 수 없습니다.' }
-    });
-  });
+  app.use('/api/admin/auth', authRoutes);
+  app.use('/api/admin/chat-rooms', adminChatRoutes);
+  app.use('/api/public/chat', publicChatRoutes);
 
-  // 마지막 안전망: 어디선가 던져진 예외를 표준 형식으로 바꾼다.
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('[unhandled]', err);
-    res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: '서버 내부 오류가 발생했습니다.' }
-    });
-  });
+  // ↓ 라우터는 Task 6~8 에서 여기에 하나씩 추가한다.
+
+  app.use((_req, _res, next) => next(notFound('요청한 경로를 찾을 수 없습니다.')));
+  app.use(errorHandler);
 
   return app;
 }
