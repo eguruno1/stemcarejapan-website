@@ -54,6 +54,23 @@ npm run dev:admin
 | 전체 빌드 | `npm run build` |
 | DB 접속 | `docker compose exec postgres psql -U stemcare -d stemcare_chat` |
 
+## 관리자 화면 사용법
+
+주소: http://localhost:3100
+
+초기 계정은 `npm run db:seed -w apps/api` 로 만든다.
+기본값은 `admin@stemcarejapan.local` / `change-me-1234` 이며,
+`.env` 의 `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` 로 바꿀 수 있다.
+
+화면 구성:
+- 왼쪽: 상담 목록 (상태 필터 / 정렬 / 읽지 않은 개수)
+- 가운데: 메시지 (원문 + 번역문 동시 표시)
+- 오른쪽: 상담 상태 조작, 고객 정보, 이전 상담 이력, AI 요약, 내부 메모
+- 우상단 `설정`: 로그인한 운영자 정보 확인과 로그아웃
+
+메시지 갱신은 현재 3초 폴링, 목록은 5초 폴링이다. Phase 4 에서 Socket.IO 실시간으로 바뀐다.
+탭이 백그라운드면 폴링을 쉬므로, 다른 창을 보고 있다가 돌아오면 한 박자 뒤에 갱신된다.
+
 ## 문제가 생겼을 때
 
 **포트가 이미 사용 중이라고 나온다**

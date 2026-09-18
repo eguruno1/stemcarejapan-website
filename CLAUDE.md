@@ -138,6 +138,10 @@ The contact form (`#contact`) collects: name, age, phone, email, disease, packag
 - 실행 방법과 포트 배치: `README-chat.md` 참고
 - 단계별 개발계획서: `docs/plans/working/20260904_phase[0-6]_상담채팅시스템개발계획서.md`
 - 상태값/언어코드 등 상수는 반드시 `@stemcare/shared` 에서 import 한다.
+- 운영자 화면 테스트: `npm run test -w apps/admin` (Vitest + Testing Library).
+  vitest 는 `apps/api` 와 **같은 메이저**로 유지한다. 버전이 갈리면 jest-dom 이
+  실행 중이 아닌 쪽 `expect` 를 확장해 모든 matcher 가 죽는다.
+- 관리자 화면의 모든 API 호출은 `credentials: 'include'` 가 필요하다. (`apps/admin/lib/api.ts`)
 - 고객 위젯 E2E: `npm run test:e2e` (`tests/e2e/`, Playwright). web·postgres·API 가 떠 있어야 한다.
 - 위젯 문구는 전부 `data-i18n` 속성으로 표시한다. 페이지가 `<html lang>` 을 바꾸면
   위젯이 MutationObserver 로 감지해 같은 언어로 다시 칠한다.
