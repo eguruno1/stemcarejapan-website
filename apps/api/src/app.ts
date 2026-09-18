@@ -3,6 +3,7 @@ import cors from 'cors';
 import express, { type Express } from 'express';
 import { config } from './config';
 import { errorHandler, notFound } from './common/errors';
+import { authRoutes } from './auth/authRoutes';
 
 export function createApp(): Express {
   const app = express();
@@ -20,7 +21,9 @@ export function createApp(): Express {
     res.json({ status: 'ok', service: 'stemcare-chat-api' });
   });
 
-  // ↓ 라우터는 Task 5~8 에서 여기에 하나씩 추가한다.
+  app.use('/api/admin/auth', authRoutes);
+
+  // ↓ 라우터는 Task 6~8 에서 여기에 하나씩 추가한다.
 
   app.use((_req, _res, next) => next(notFound('요청한 경로를 찾을 수 없습니다.')));
   app.use(errorHandler);
