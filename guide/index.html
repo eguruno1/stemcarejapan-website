@@ -19,6 +19,15 @@
       display: flex; align-items: center; justify-content: space-between;
       gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--light-gray);
     }
+    .guide-header .logo-text { color: var(--primary); }
+    .guide-header .lang-btn, .guide-header .lang-sep { color: var(--text-mid); }
+    .guide-header .lang-btn.active { color: var(--primary); text-decoration: underline; }
+    @media (max-width: 600px) {
+      .guide-header { flex-direction: column; align-items: flex-start; }
+      .guide-header nav { justify-content: flex-start; }
+      .guide-header .lang-switcher { margin-left: 0; }
+    }
+    .guide-header nav { flex-wrap: wrap; justify-content: flex-end; }
     .guide-header .lang-switcher { position: static; }
     .guide-back { font-size: 0.85rem; color: var(--text-mid); text-decoration: none; }
     .guide-back:hover { color: var(--primary); }
@@ -62,6 +71,7 @@
     .guide-footer { padding: 26px 0 40px; text-align: center; color: var(--text-light); font-size: 0.8rem; }
     .guide-footer a { color: var(--text-mid); }
 
+    .faq-item.open .faq-answer { max-height: none; }
     [data-lang-block] { display: none; }
     html[data-lang="ko"] [data-lang-block="ko"] { display: block; }
     html[data-lang="ja"] [data-lang-block="ja"] { display: block; }
@@ -113,16 +123,14 @@
           <h2><i class="fas fa-comments"></i> 상담 채팅이란?</h2>
           <p class="guide-lead">
             StemCareJapan의 상담 채팅은 전화나 방문 없이 화면에서 바로 문의하고 답을 받을 수 있는 실시간 채팅
-            서비스입니다. 일반적인 질문에는 AI가 즉시 답변하고, 정확한 확인이 필요한 문의는 자동으로 담당
-            상담원에게 연결됩니다. <strong>상담은 무료</strong>이며, 회원가입 없이 바로 이용할 수 있습니다.
+            서비스입니다. 먼저 접수 인사를 안내하고 이후 일반적인 질문에 AI 답변을 시도합니다. 정확한 확인이 필요한 문의는 담당자 연결 대기로 전환됩니다. <strong>상담은 무료</strong>이며, 회원가입 없이 바로 이용할 수 있습니다.
           </p>
         </div>
         <div data-lang-block="ja">
           <h2><i class="fas fa-comments"></i> 相談チャットとは？</h2>
           <p class="guide-lead">
             StemCareJapanの相談チャットは、電話やご来店なしに画面上ですぐにお問い合わせいただけるリアルタイム
-            チャットサービスです。一般的なご質問にはAIが即座にお答えし、正確な確認が必要なお問い合わせは自動的に
-            担当スタッフにおつなぎします。<strong>ご相談は無料</strong>で、会員登録なしにすぐご利用いただけます。
+            チャットサービスです。最初に受付のご挨拶を表示し、その後の一般的なご質問にはAIが回答を試みます。確認が必要なお問い合わせは担当者への接続待ちになります。<strong>ご相談は無料</strong>で、会員登録なしにすぐご利用いただけます。
           </p>
         </div>
       </div>
@@ -194,13 +202,13 @@
           <h2><i class="fas fa-info-circle"></i> 채팅 화면 보는 법</h2>
           <p class="guide-lead">채팅창 위쪽에 지금 상담이 어떤 상태인지 표시됩니다.</p>
           <div class="guide-status-grid">
-            <div class="guide-status-card"><strong><span class="dot dot-bot"></span>AI 상담 중</strong><p>AI가 응대하고 있습니다. 공항 픽업 시간 같은 일반적인 질문에는 바로 답변합니다.</p></div>
-            <div class="guide-status-card"><strong><span class="dot dot-waiting"></span>운영자 연결 대기 중</strong><p>가격, 예약, 건강 상태처럼 정확한 확인이 필요한 문의는 자동으로 이 상태가 됩니다. 담당자가 곧 답변합니다.</p></div>
+            <div class="guide-status-card"><strong><span class="dot dot-bot"></span>AI 상담 중</strong><p>AI가 일반적인 안내를 도와드립니다. 확정 가격·예약·의료 판단은 담당자 확인이 필요하며, AI 오류 시에도 담당자 대기로 전환될 수 있습니다.</p></div>
+            <div class="guide-status-card"><strong><span class="dot dot-waiting"></span>운영자 연결 대기 중</strong><p>가격, 예약, 건강 상태처럼 정확한 확인이 필요한 문의는 자동으로 이 상태가 됩니다. 담당자 확인까지 시간이 걸릴 수 있으며, 대기 상태에서도 추가 메시지를 남길 수 있습니다.</p></div>
             <div class="guide-status-card"><strong><span class="dot dot-active"></span>운영자 상담 중</strong><p>담당 상담원이 직접 대화하고 있는 상태입니다.</p></div>
             <div class="guide-status-card"><strong><span class="dot dot-closed"></span>상담 종료</strong><p>상담이 마무리되었습니다. 새 상담이 필요하면 「새 상담 시작」 버튼을 누르세요.</p></div>
           </div>
           <div class="guide-note"><i class="fas fa-hand-point-right"></i>
-            <span>언제든 <strong>「담당자 연결 요청」</strong> 버튼을 눌러 바로 상담원 연결을 요청할 수 있습니다. AI 답변으로 해결되지 않으면 주저하지 말고 눌러주세요.</span>
+            <span>AI 상담 중에는 <strong>「담당자 연결 요청」</strong> 버튼으로 연결 대기를 요청할 수 있습니다. 즉시 연결을 보장하지는 않습니다. AI 답변으로 해결되지 않으면 주저하지 말고 눌러주세요.</span>
           </div>
         </div>
 
@@ -208,13 +216,13 @@
           <h2><i class="fas fa-info-circle"></i> チャット画面の見方</h2>
           <p class="guide-lead">チャット画面の上部に、現在の相談状況が表示されます。</p>
           <div class="guide-status-grid">
-            <div class="guide-status-card"><strong><span class="dot dot-bot"></span>AI相談中</strong><p>AIが対応中です。空港送迎時間などの一般的なご質問には即座にお答えします。</p></div>
-            <div class="guide-status-card"><strong><span class="dot dot-waiting"></span>担当者の接続待ち</strong><p>料金・予約・健康状態など正確な確認が必要なお問い合わせは自動的にこの状態になります。まもなく担当者がお答えします。</p></div>
+            <div class="guide-status-card"><strong><span class="dot dot-bot"></span>AI相談中</strong><p>AIが一般的なご案内をお手伝いします。料金の確定・予約・医療に関する判断は担当者の確認が必要です。AIのエラー時も担当者待ちになる場合があります。</p></div>
+            <div class="guide-status-card"><strong><span class="dot dot-waiting"></span>担当者の接続待ち</strong><p>料金・予約・健康状態など正確な確認が必要なお問い合わせは自動的にこの状態になります。担当者の確認までお時間をいただく場合があります。待機中も追加メッセージを送れます。</p></div>
             <div class="guide-status-card"><strong><span class="dot dot-active"></span>担当者と相談中</strong><p>担当スタッフが直接対応している状態です。</p></div>
             <div class="guide-status-card"><strong><span class="dot dot-closed"></span>相談終了</strong><p>相談が終了しました。新しい相談が必要な場合は「新しい相談を開始」ボタンを押してください。</p></div>
           </div>
           <div class="guide-note"><i class="fas fa-hand-point-right"></i>
-            <span>いつでも<strong>「担当者につなぐ」</strong>ボタンを押すと、すぐに担当者への接続をご依頼いただけます。AIの回答で解決しない場合は遠慮なくお押しください。</span>
+            <span>AI相談中は<strong>「担当者につなぐ」</strong>ボタンで接続を依頼できます。すぐに接続されるとは限りません。AIの回答で解決しない場合は遠慮なくお押しください。</span>
           </div>
         </div>
       </div>
@@ -226,8 +234,8 @@
         <div data-lang-block="ko">
           <h2><i class="fas fa-language"></i> 알아두면 좋은 점</h2>
           <div class="guide-tip-grid">
-            <div class="guide-tip"><i class="fas fa-globe-asia"></i><h3>언어 걱정 없이 상담하세요</h3><p>일본어로 문의하시면 상담원에게 자동으로 한국어 번역이 전달됩니다. 상담원 답변도 자동 번역되어 고객님 화면에는 선택하신 언어로만 보입니다.</p></div>
-            <div class="guide-tip"><i class="fas fa-sync-alt"></i><h3>새로고침해도 대화가 유지돼요</h3><p>같은 브라우저에서는 창을 닫았다 다시 열거나 새로고침해도 대화 내용이 그대로 남아 있습니다. 단, 다른 기기·다른 브라우저에서는 이어볼 수 없습니다.</p></div>
+            <div class="guide-tip"><i class="fas fa-globe-asia"></i><h3>언어 걱정 없이 상담하세요</h3><p>일본어로 문의하시면 상담원에게 자동으로 한국어 번역이 전달됩니다. 상담원은 번역문을 확인·수정한 뒤 보냅니다. 번역 오류가 있을 수 있고 일부 시스템 안내는 한국어로 표시될 수 있으니, 중요한 내용은 담당자에게 다시 확인해주세요.</p></div>
+            <div class="guide-tip"><i class="fas fa-sync-alt"></i><h3>새로고침해도 대화가 유지돼요</h3><p>같은 사이트·브라우저에 접속 정보가 남아 있으면 서버에 저장된 대화를 다시 불러옵니다. 사이트 데이터 삭제·시크릿 창 종료·저장 차단 시 복원이 어려울 수 있으며, 작성 중이거나 전송 실패한 메시지는 새로고침 시 사라질 수 있습니다.</p></div>
             <div class="guide-tip"><i class="fas fa-redo"></i><h3>전송 실패 시 다시 시도</h3><p>네트워크 문제로 메시지 전송이 실패하면 「전송 실패 · 다시 시도」가 표시됩니다. 눌러서 같은 메시지를 다시 보낼 수 있습니다.</p></div>
             <div class="guide-tip"><i class="fas fa-arrow-down"></i><h3>이전 대화를 읽는 중엔 화면이 안 움직여요</h3><p>스크롤을 올려 이전 내용을 보는 중에 새 메시지가 오면 화면이 강제로 이동하지 않습니다. 「새 메시지」 버튼을 누르면 최신 위치로 이동합니다.</p></div>
           </div>
@@ -236,8 +244,8 @@
         <div data-lang-block="ja">
           <h2><i class="fas fa-language"></i> 知っておくと便利なこと</h2>
           <div class="guide-tip-grid">
-            <div class="guide-tip"><i class="fas fa-globe-asia"></i><h3>言語の心配なくご相談を</h3><p>日本語でお問い合わせいただくと、担当者には自動で韓国語訳が届きます。担当者の返信も自動翻訳され、お客様の画面には選択された言語だけが表示されます。</p></div>
-            <div class="guide-tip"><i class="fas fa-sync-alt"></i><h3>再読み込みしても会話は保持されます</h3><p>同じブラウザであれば、ウィンドウを閉じて再度開いたり、再読み込みしても会話内容はそのまま残ります。ただし別の端末・別のブラウザでは続きをご覧いただけません。</p></div>
+            <div class="guide-tip"><i class="fas fa-globe-asia"></i><h3>言語の心配なくご相談を</h3><p>日本語でお問い合わせいただくと、担当者には自動で韓国語訳が届きます。担当者は翻訳を確認・修正してから送信します。誤訳や一部の韓国語のシステム案内が表示される場合があります。重要な内容は担当者にご確認ください。</p></div>
+            <div class="guide-tip"><i class="fas fa-sync-alt"></i><h3>再読み込みしても会話は保持されます</h3><p>同じサイト・ブラウザに接続情報が残っていれば、サーバーに保存された会話を再表示できます。サイトデータの削除・プライベートウィンドウの終了・保存制限により復元できない場合があります。入力中や送信失敗の文は再読み込みで失われる場合があります。</p></div>
             <div class="guide-tip"><i class="fas fa-redo"></i><h3>送信失敗時は再試行できます</h3><p>通信状況によりメッセージ送信が失敗すると「送信失敗・再試行」と表示されます。押すと同じメッセージを再送信できます。</p></div>
             <div class="guide-tip"><i class="fas fa-arrow-down"></i><h3>過去の会話を読んでいる間は画面が動きません</h3><p>スクロールして過去の内容を見ている間に新着メッセージが届いても、画面は強制的に移動しません。「新着メッセージ」ボタンを押すと最新位置に移動します。</p></div>
           </div>
@@ -253,7 +261,7 @@
           <p class="guide-lead">
             상담이 종료되면 화면에 만족도 평가가 나타납니다. 별 1~5개로 평가하고 의견을 자유롭게 남길 수
             있습니다. 평가는 선택 사항이며, <strong>「건너뛰기」</strong>를 눌러도 됩니다. 남겨주신 의견은 서비스
-            개선에 활용됩니다. 새 상담이 필요하면 언제든 <strong>「새 상담 시작」</strong> 버튼을 눌러 다시
+            개선에 활용됩니다. 평가는 상담당 1회이며 의견은 1,000자까지 입력할 수 있습니다. 새 상담을 시작하면 현재 브라우저에서 이전 상담으로 돌아가는 기능은 제공되지 않습니다. 새 상담이 필요하면 언제든 <strong>「새 상담 시작」</strong> 버튼을 눌러 다시
             시작할 수 있습니다.
           </p>
         </div>
@@ -262,7 +270,7 @@
           <p class="guide-lead">
             相談が終了すると、画面に満足度評価が表示されます。星1〜5個で評価し、ご意見も自由にご記入いただけます。
             評価は任意で、<strong>「スキップ」</strong>を押していただいても構いません。いただいたご意見はサービス
-            改善に活用させていただきます。新しい相談が必要な場合は、いつでも<strong>「新しい相談を開始」</strong>
+            改善に活用させていただきます。評価は相談ごとに1回、コメントは1,000文字までです。新しい相談を始めると、このブラウザから前の相談に戻る機能はありません。新しい相談が必要な場合は、いつでも<strong>「新しい相談を開始」</strong>
             ボタンから再度お問い合わせいただけます。
           </p>
         </div>
@@ -281,11 +289,11 @@
             </div>
             <div class="faq-item">
               <button class="faq-question">개인정보는 안전하게 보관되나요? <i class="fas fa-chevron-down faq-arrow"></i></button>
-              <div class="faq-answer"><p>네. 상담 진행 목적으로만 사용되며, 상담 종료 후 일정 기간이 지나면 이름·연락처 등 개인정보를 비식별화하고, 오래된 상담 내용은 정책에 따라 순차적으로 삭제합니다.</p></div>
+              <div class="faq-answer"><p>상담 내용은 서버에 저장되며 번역·AI 상담 처리를 위해 외부 AI 서비스로 전달될 수 있습니다. 비밀번호·결제정보 등 불필요한 민감정보는 보내지 마세요. 개인정보 처리와 삭제에 관한 문의는 담당자에게 요청해주세요.</p></div>
             </div>
             <div class="faq-item">
               <button class="faq-question">다른 기기나 브라우저에서 이어서 볼 수 있나요? <i class="fas fa-chevron-down faq-arrow"></i></button>
-              <div class="faq-answer"><p>아니요. 상담 내용은 지금 사용 중인 브라우저에만 저장됩니다. 다른 기기·다른 브라우저·시크릿 모드에서는 이전 대화를 불러올 수 없으니, 중요한 내용은 미리 캡처해 두시길 권장합니다.</p></div>
+              <div class="faq-answer"><p>현재는 다른 기기나 브라우저로 상담을 옮기는 기능이 없습니다. 대화는 서버에 저장되고, 이 대화를 불러오는 접속 정보가 브라우저에 보관됩니다. 공용 기기에서는 다른 사람이 대화를 열 수 있으니 이용에 주의해주세요.</p></div>
             </div>
             <div class="faq-item">
               <button class="faq-question">모바일에서도 이용할 수 있나요? <i class="fas fa-chevron-down faq-arrow"></i></button>
@@ -293,7 +301,7 @@
             </div>
             <div class="faq-item">
               <button class="faq-question">몇 시에 상담할 수 있나요? <i class="fas fa-chevron-down faq-arrow"></i></button>
-              <div class="faq-answer"><p>AI 상담은 24시간 가능합니다. 담당 상담원 연결은 근무 시간 내에 이루어지며, 시간 외에 남겨주신 메시지는 확인 후 연락드립니다.</p></div>
+              <div class="faq-answer"><p>채팅창에서 문의를 남길 수 있지만, 서버·AI 서비스 상태와 담당자 접속 여부에 따라 답변이 지연될 수 있습니다. 담당자 연결 요청은 대기 접수이며 즉시 답변이나 예약 확정을 의미하지 않습니다.</p></div>
             </div>
             <div class="faq-item">
               <button class="faq-question">잘못 보낸 메시지를 수정하거나 지울 수 있나요? <i class="fas fa-chevron-down faq-arrow"></i></button>
@@ -311,11 +319,11 @@
             </div>
             <div class="faq-item">
               <button class="faq-question">個人情報は安全に保管されますか？ <i class="fas fa-chevron-down faq-arrow"></i></button>
-              <div class="faq-answer"><p>はい。ご相談の目的にのみ使用し、相談終了後一定期間が経過すると氏名・連絡先などの個人情報を非識別化し、古い相談内容はポリシーに従って順次削除します。</p></div>
+              <div class="faq-answer"><p>相談内容はサーバーに保存され、翻訳・AI相談のため外部AIサービスに送信される場合があります。パスワード・決済情報など不要な機密情報は送らないでください。個人情報の取り扱いや削除については担当者にお問い合わせください。</p></div>
             </div>
             <div class="faq-item">
               <button class="faq-question">別の端末やブラウザで続きを見られますか？ <i class="fas fa-chevron-down faq-arrow"></i></button>
-              <div class="faq-answer"><p>いいえ。相談内容は現在お使いのブラウザにのみ保存されます。別の端末・別のブラウザ・シークレットモードでは過去の会話を読み込めませんので、重要な内容は事前に画面キャプチャしておくことをおすすめします。</p></div>
+              <div class="faq-answer"><p>現在、別の端末やブラウザへ相談を引き継ぐ機能はありません。会話はサーバーに、会話を開くための接続情報はブラウザに保存されます。共用端末では他の人が会話を開ける可能性があるためご注意ください。</p></div>
             </div>
             <div class="faq-item">
               <button class="faq-question">スマートフォンでも利用できますか？ <i class="fas fa-chevron-down faq-arrow"></i></button>
@@ -323,7 +331,7 @@
             </div>
             <div class="faq-item">
               <button class="faq-question">何時に相談できますか？ <i class="fas fa-chevron-down faq-arrow"></i></button>
-              <div class="faq-answer"><p>AI相談は24時間ご利用いただけます。担当者への接続は営業時間内に行われ、時間外にいただいたメッセージは確認後ご連絡いたします。</p></div>
+              <div class="faq-answer"><p>チャットでお問い合わせを送れますが、サーバー・AIサービスの状態や担当者の接続状況により回答が遅れる場合があります。接続依頼は受付であり、即時回答や予約確定を意味しません。</p></div>
             </div>
             <div class="faq-item">
               <button class="faq-question">誤って送信したメッセージは修正・削除できますか？ <i class="fas fa-chevron-down faq-arrow"></i></button>
@@ -364,10 +372,12 @@
 
     // ---- 언어 전환 (한/일). 사이트 전체 저장 키(scj-lang)를 함께 읽고 쓴다 ----
     function applyLang(lang) {
+      document.title = lang === 'ja' ? '相談チャット利用ガイド | StemCareJapan' : '상담 채팅 이용 가이드 | StemCareJapan';
       document.documentElement.setAttribute('lang', lang);
       document.documentElement.setAttribute('data-lang', lang);
       document.querySelectorAll('[data-set-lang]').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.setLang === lang);
+        btn.setAttribute('aria-pressed', String(btn.dataset.setLang === lang));
       });
       try { localStorage.setItem('scj-lang', lang); } catch { /* 시크릿 모드 등에서는 무시 */ }
     }
@@ -379,19 +389,30 @@
     applyLang(initialLang);
 
     // ---- FAQ 아코디언 (메인 사이트와 같은 .faq-item 구조를 그대로 쓴다) ----
-    document.querySelectorAll('.faq-item').forEach((item) => {
+    function setFaqOpen(item, open) {
+      item.classList.toggle('open', open);
+      item.querySelector('.faq-question').setAttribute('aria-expanded', String(open));
+      item.querySelector('.faq-answer').hidden = !open;
+    }
+    document.querySelectorAll('.faq-item').forEach((item, index) => {
       const btn = item.querySelector('.faq-question');
+      const answer = item.querySelector('.faq-answer');
+      answer.id = `guide-faq-${index}`;
+      btn.setAttribute('aria-controls', answer.id);
+      setFaqOpen(item, false);
       btn.addEventListener('click', () => {
         const isOpen = item.classList.contains('open');
-        const parent = item.closest('.faq-list');
-        parent?.querySelectorAll('.faq-item.open').forEach((open) => open.classList.remove('open'));
-        if (!isOpen) item.classList.add('open');
+        item.closest('.faq-list')?.querySelectorAll('.faq-item').forEach(other => setFaqOpen(other, false));
+        setFaqOpen(item, !isOpen);
       });
     });
 
     // ---- CTA 버튼: 실제 상담 위젯의 토글 버튼을 대신 눌러준다 ----
     function openWidget() {
-      document.querySelector('.consult-chat-toggle')?.click();
+      const toggle = document.querySelector('.consult-chat-toggle');
+      if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
+      Array.from(document.querySelectorAll('#consult-chat-panel input:not([disabled]), #consult-chat-panel textarea:not([disabled])'))
+        .find(field => field.getClientRects().length > 0)?.focus();
     }
     document.getElementById('guide-start-btn')?.addEventListener('click', openWidget);
     document.getElementById('guide-start-btn-ja')?.addEventListener('click', openWidget);
