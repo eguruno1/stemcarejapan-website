@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import type { Language, MessageDTO } from '@stemcare/shared';
 import { sendOperatorMessage } from '@/lib/api';
+import { getSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/Button';
 
 export function ChatComposer({
@@ -43,6 +44,8 @@ export function ChatComposer({
       onSent(message);
       retry.current = null;
       setText(current => current.trim() === trimmed ? '' : current);
+      const socket = getSocket();
+      if (socket.connected) socket.emit('chat:typing', { roomId, isTyping: false });
     } catch (err) {
       setError(err instanceof Error ? err.message : '전송에 실패했습니다.');
     } finally {
@@ -80,7 +83,13 @@ export function ChatComposer({
 
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            const socket = getSocket();
+            if (socket.connected) {
+              socket.emit('chat:typing', { roomId, isTyping: e.target.value.trim().length > 0 });
+            }
+          }}
           onKeyDown={(e) => {
             // Enter 전송, Shift+Enter 줄바꿈
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {

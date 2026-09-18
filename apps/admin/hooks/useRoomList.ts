@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChatRoomListItem, ChatRoomStatus } from '@stemcare/shared';
 import { fetchRooms } from '@/lib/api';
+import { getSocket } from '@/lib/socket';
 const POLL_INTERVAL_MS = 5000;
 export type StatusFilter = ChatRoomStatus | 'all';
 export type SortOption = 'recent' | 'oldest_waiting';
@@ -38,5 +39,21 @@ export function useRoomList() {
     }, POLL_INTERVAL_MS);
     return () => { generation.current += 1; requestRef.current = null; window.clearInterval(timer); };
   }, [load]);
+
+  // 소켓이 알려주면 5초를 기다리지 않고 즉시 다시 불러온다.
+  // 5초 폴링은 그대로 둔다 — 소켓이 막힌 환경에서 목록이 멈추면 안 되기 때문이다.
+  useEffect(() => {
+    const socket = getSocket();
+    function handleUpdate() {
+      void load();
+    }
+    socket.on('rooms:updated', handleUpdate);
+    socket.on('rooms:new', handleUpdate);
+    return () => {
+      socket.off('rooms:updated', handleUpdate);
+      socket.off('rooms:new', handleUpdate);
+    };
+  }, [load]);
+
   return { rooms, loading, error, filter, setFilter, sort, setSort, refresh: load };
 }

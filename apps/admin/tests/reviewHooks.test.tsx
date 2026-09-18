@@ -5,6 +5,12 @@ import { useRoomList } from '@/hooks/useRoomList';
 import { useRoomStream } from '@/hooks/useRoomStream';
 import { fetchRoom, fetchRooms } from '@/lib/api';
 vi.mock('@/lib/api', () => ({ fetchRoom: vi.fn(), fetchRooms: vi.fn() }));
+// 실제 socket.io-client 를 붙이면 매 렌더마다 실제 API 서버로 연결을 시도한다.
+// 훅의 폴링/병합 로직만 검증하면 되므로 아무 이벤트도 내지 않는 가짜로 대체한다.
+vi.mock('@/lib/socket', () => ({
+  getSocket: () => ({ connected: false, on: vi.fn(), off: vi.fn(), emit: vi.fn() }),
+  closeSocket: vi.fn()
+}));
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r; }); return { promise, resolve }; }
 const room = (id: string) => ({ id, messages: [], notes: [] } as unknown as ChatRoomDetail);
 beforeEach(() => vi.resetAllMocks());

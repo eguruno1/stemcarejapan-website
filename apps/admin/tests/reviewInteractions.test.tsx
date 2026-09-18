@@ -5,6 +5,12 @@ import { CustomerSidebar } from '@/components/chat/CustomerSidebar';
 import { sendOperatorMessage, fetchCustomerHistory } from '@/lib/api';
 import type { ChatRoomDetail, MessageDTO } from '@stemcare/shared';
 vi.mock('@/lib/api', () => ({ sendOperatorMessage: vi.fn(), fetchCustomerHistory: vi.fn() }));
+// ChatComposer 는 입력할 때마다 getSocket() 으로 타이핑 신호를 보낸다.
+// 실제 소켓을 붙이면 이 유닛 테스트가 실제 API 서버로 연결을 시도하게 된다.
+vi.mock('@/lib/socket', () => ({
+  getSocket: () => ({ connected: false, on: vi.fn(), off: vi.fn(), emit: vi.fn() }),
+  closeSocket: vi.fn()
+}));
 beforeEach(() => vi.resetAllMocks());
 it('한일 IME 확정 Enter로 답변을 보내지 않는다', () => {
   render(<ChatComposer roomId="a" disabled={false} onSent={vi.fn()} />);

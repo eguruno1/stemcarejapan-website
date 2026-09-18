@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { OperatorDTO } from '@stemcare/shared';
 import * as api from '@/lib/api';
+import { closeSocket } from '@/lib/socket';
 
 type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => api.subscribeUnauthorized(() => {
     revision.current += 1;
+    closeSocket();
     setOperator(null); setStatus('anonymous');
   }), []);
 
@@ -66,6 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     revision.current += 1;
     try {
       await api.logout();
+      // 로그아웃 후에도 소켓이 살아 있으면, 서버가 아직 이 소켓을 운영자로 인식해
+      // 남의 상담 이벤트를 계속 이 브라우저로 보낸다.
+      closeSocket();
       setOperator(null); setStatus('anonymous'); setError(null);
     } catch {
       setError('로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해주세요.');

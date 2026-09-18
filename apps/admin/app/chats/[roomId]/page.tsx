@@ -10,7 +10,7 @@ import { useRoomStream } from '@/hooks/useRoomStream';
 export default function ChatRoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   // Next.js 15 에서 params 는 Promise 다. use() 로 풀어 쓴다.
   const { roomId } = use(params);
-  const { room, loading, error, applyRoom, appendMessage, appendNote } = useRoomStream(roomId);
+  const { room, loading, error, realtime, peerTyping, applyRoom, appendMessage, appendNote } = useRoomStream(roomId);
 
   if (loading && !room) {
     return (
@@ -54,9 +54,18 @@ export default function ChatRoomPage({ params }: { params: Promise<{ roomId: str
         >
           <strong style={{ fontSize: 13 }}>{room.customer.name}</strong>
           <StatusBadge status={room.status} />
-          {error && (
+          {peerTyping && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>고객이 입력 중…</span>
+          )}
+          {error ? (
             <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--danger)' }}>
               연결 불안정 · 재시도 중
+            </span>
+          ) : (
+            <span
+              style={{ marginLeft: 'auto', fontSize: 11, color: realtime ? '#1a7f37' : '#c07a2b' }}
+            >
+              {realtime ? '실시간 연결됨' : '재연결 중 · 주기 조회로 동작'}
             </span>
           )}
         </header>
