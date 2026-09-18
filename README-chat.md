@@ -47,6 +47,8 @@ npm run dev:admin
 | 목적 | 명령 |
 |---|---|
 | API 테스트 실행 | `npm run test -w apps/api` |
+| 위젯 E2E 테스트 | `npm run test:e2e` (web·postgres·API 가 모두 떠 있어야 한다) |
+| E2E 를 눈으로 보며 디버깅 | `npm run test:e2e:ui` |
 | DB 컨테이너 시작 | `npm run db:up` |
 | DB 완전 초기화 | `docker compose down -v && docker compose up -d postgres` |
 | 전체 빌드 | `npm run build` |

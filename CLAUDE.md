@@ -47,6 +47,13 @@ All content lives in three core files plus an `images/` folder:
 - **`index.html`** — Single HTML file containing every section in order: Hero → About → Services → How It Works (Process) → Treatment → Tourism → Testimonials → FAQ → Contact → Footer. Sections are identified by `id` attributes (e.g. `#hero`, `#services`, `#treatment`).
 - **`css/style.css`** — Single stylesheet covering all layout, theming, and responsive breakpoints (>1100px, 900–1100px, 640–900px, <640px). Design direction: "Refined Luxury Medical" — midnight navy `#0b1d3a`, champagne gold `#b8922d`, warm ivory `#f5f0e6`.
 - **`js/main.js`** — Single JS file handling all interactivity: i18n language switching, AOS animation init, sticky nav scroll effect, mobile hamburger menu, smooth scroll, hero particles, counter animation, city tab switching, testimonial slider (auto-play + touch swipe), FAQ accordion, active nav highlighting, contact form modal, floating buttons, and ZIP source download.
+- **`js/chat/`** — 상담 채팅 위젯(Phase 2). ES module 7개로 나뉘어 있고 빌드 도구를 쓰지 않는다.
+  `config`(상수) · `i18n`(한/일 문구) · `state`(세션·메시지 + subscribe/notify) ·
+  `api`(fetch 래퍼) · `poller`(3초 폴링, Phase 4에서 Socket.IO로 교체) ·
+  `render`(DOM·스크롤) · `widget`(진입점). 레이어 규칙: `api.js`는 DOM을 모르고,
+  `render.js`는 fetch를 모른다.
+- **`css/chat-widget.css`** — 위젯 채팅 화면 스타일. `style.css` **뒤에** 읽혀야 한다.
+  `style.css`를 쓰지 않는 `korea-travel/`을 위해 `.chat-standalone` 기본 스타일을 함께 담고 있다.
 - **`images/`** — Static image assets organized by section (see Image Structure below).
 
 ## i18n (다국어 지원)
@@ -131,3 +138,6 @@ The contact form (`#contact`) collects: name, age, phone, email, disease, packag
 - 실행 방법과 포트 배치: `README-chat.md` 참고
 - 단계별 개발계획서: `docs/plans/working/20260904_phase[0-6]_상담채팅시스템개발계획서.md`
 - 상태값/언어코드 등 상수는 반드시 `@stemcare/shared` 에서 import 한다.
+- 고객 위젯 E2E: `npm run test:e2e` (`tests/e2e/`, Playwright). web·postgres·API 가 떠 있어야 한다.
+- 위젯 문구는 전부 `data-i18n` 속성으로 표시한다. 페이지가 `<html lang>` 을 바꾸면
+  위젯이 MutationObserver 로 감지해 같은 언어로 다시 칠한다.
