@@ -5,6 +5,8 @@ docs/**
 !docs/plans/history/
 !docs/plans/history/20260918_phase4-6_review/
 !docs/plans/history/20260918_phase4-6_review/*.md
+!docs/guides/
+!docs/guides/*.md
 node_modules/
 .env
 .env.local

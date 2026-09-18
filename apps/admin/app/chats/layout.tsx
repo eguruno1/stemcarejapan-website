@@ -45,6 +45,12 @@ export default function ChatsLayout({ children }: { children: React.ReactNode })
         >
           운영 현황
         </Link>
+        <Link
+          href="/guide"
+          style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}
+        >
+          이용가이드
+        </Link>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           {operator.name} · {operator.role === 'admin' ? '관리자' : '운영자'}
         </span>

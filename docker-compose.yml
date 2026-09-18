@@ -10,6 +10,7 @@ services:
       - ./images:/usr/share/nginx/html/images
       - ./stemcell:/usr/share/nginx/html/stemcell
       - ./korea-travel:/usr/share/nginx/html/korea-travel
+      - ./guide:/usr/share/nginx/html/guide
 
   postgres:
     image: postgres:16
