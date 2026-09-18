@@ -122,3 +122,12 @@ All dependencies are loaded via CDN — no local `node_modules`:
 ## Contact Form / Data Model
 
 The contact form (`#contact`) collects: name, age, phone, email, disease, package, message. Form submission currently shows a success modal only — no backend is wired up. The `fetch('tables/inquiries', ...)` call in `main.js` is a stub for future API integration.
+
+## 상담채팅시스템 (Phase 0~6)
+
+정적 홈페이지와 별개로 `apps/api`(Express+Socket.IO), `apps/admin`(Next.js),
+`packages/shared`(공용 타입)가 npm workspace 로 함께 관리된다.
+
+- 실행 방법과 포트 배치: `README-chat.md` 참고
+- 단계별 개발계획서: `docs/plans/working/20260904_phase[0-6]_상담채팅시스템개발계획서.md`
+- 상태값/언어코드 등 상수는 반드시 `@stemcare/shared` 에서 import 한다.
