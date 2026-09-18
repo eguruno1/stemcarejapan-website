@@ -8,3 +8,11 @@ test-results
 playwright-report
 *.log
 .DS_Store
+
+.env
+.env.*
+**/.env
+**/.env.*
+backups
+*.sql
+*.sql.gz

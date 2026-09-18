@@ -5,9 +5,11 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const { testDatabaseUrl } = require('../../apps/api/scripts/test-db-url.cjs');
 process.env.DATABASE_URL = testDatabaseUrl(process.env);
 process.env.NODE_ENV = 'test';
-process.env.API_PORT = '4001';
-process.env.WEBSITE_ORIGIN = 'http://127.0.0.1:8081';
-process.env.ADMIN_ORIGIN = 'http://127.0.0.1:3101';
+// 개발용 키가 있더라도 자동 테스트에서 외부 모델을 호출하지 않는다.
+process.env.OPENAI_API_KEY = '';
+process.env.API_PORT = '14001';
+process.env.WEBSITE_ORIGIN = 'http://127.0.0.1:18081';
+process.env.ADMIN_ORIGIN = 'http://127.0.0.1:13101';
 execFileSync(process.execPath, [require.resolve('prisma/build/index.js'), 'db', 'push', '--skip-generate'], {
   cwd: path.resolve(__dirname, '../../apps/api'), stdio: 'inherit', env: process.env
 });

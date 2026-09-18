@@ -51,3 +51,10 @@ describe('aiClient', () => {
     ).rejects.toBeInstanceOf(AiUnavailableError);
   });
 });
+
+it('타임아웃 시 진행 중인 모델 요청에도 취소 신호를 보낸다', async () => {
+  let signal: AbortSignal | undefined;
+  setModelCaller(input => { signal = input.signal; return new Promise(() => {}); });
+  await expect(callModel({ model: 'm', system: 's', user: 'u', timeoutMs: 10 })).rejects.toBeInstanceOf(AiUnavailableError);
+  expect(signal?.aborted).toBe(true);
+});

@@ -47,7 +47,7 @@ All content lives in three core files plus an `images/` folder:
 - **`index.html`** — Single HTML file containing every section in order: Hero → About → Services → How It Works (Process) → Treatment → Tourism → Testimonials → FAQ → Contact → Footer. Sections are identified by `id` attributes (e.g. `#hero`, `#services`, `#treatment`).
 - **`css/style.css`** — Single stylesheet covering all layout, theming, and responsive breakpoints (>1100px, 900–1100px, 640–900px, <640px). Design direction: "Refined Luxury Medical" — midnight navy `#0b1d3a`, champagne gold `#b8922d`, warm ivory `#f5f0e6`.
 - **`js/main.js`** — Single JS file handling all interactivity: i18n language switching, AOS animation init, sticky nav scroll effect, mobile hamburger menu, smooth scroll, hero particles, counter animation, city tab switching, testimonial slider (auto-play + touch swipe), FAQ accordion, active nav highlighting, contact form modal, floating buttons, and ZIP source download.
-- **`js/chat/`** — 상담 채팅 위젯(Phase 2). ES module 7개로 나뉘어 있고 빌드 도구를 쓰지 않는다.
+- **`js/chat/`** — 상담 채팅 위젯(Phase 2). ES module 9개로 나뉘어 있고 빌드 도구를 쓰지 않는다.
   `config`(상수) · `i18n`(한/일 문구) · `state`(세션·메시지 + subscribe/notify) ·
   `api`(fetch 래퍼) · `poller`(3초 폴링, socket 연결 실패 시 폴백) ·
   `socket`(Socket.IO 클라이언트) · `stream`(socket 우선, 실패 시 poller 로 자동 전환) ·
@@ -143,7 +143,12 @@ The contact form (`#contact`) collects: name, age, phone, email, disease, packag
   vitest 는 `apps/api` 와 **같은 메이저**로 유지한다. 버전이 갈리면 jest-dom 이
   실행 중이 아닌 쪽 `expect` 를 확장해 모든 matcher 가 죽는다.
 - 관리자 화면의 모든 API 호출은 `credentials: 'include'` 가 필요하다. (`apps/admin/lib/api.ts`)
-- 고객·관리자 E2E: `npm run test:e2e` (`tests/e2e/`, Playwright). PostgreSQL만 사전 실행하며 TEST_DATABASE_URL과 전용 8081/4001/3101 서버를 사용한다.
+- 고객·관리자 E2E: `npm run test:e2e` (`tests/e2e/`, Playwright). PostgreSQL만 사전 실행하며 TEST_DATABASE_URL과 전용 18081/14001/13101 서버를 사용한다.
 - 위젯 회귀 테스트: `npm run test:widget`. 관리자 단위·상호작용 테스트: `npm run test:admin`.
 - 위젯 문구는 전부 `data-i18n` 속성으로 표시한다. 페이지가 `<html lang>` 을 바꾸면
   위젯이 MutationObserver 로 감지해 같은 언어로 다시 칠한다.
+
+
+## Phase 4~6 검토 인계
+
+AI 결과 저장·인계·보관 정리는 방 잠금 규칙을 보존한다. 모델 호출 중에는 잠금을 잡지 않고, 저장 직전에 상담 상태와 마지막 메시지를 재확인한다. 비동기 작업은 `trackBackground`에 등록해 테스트 DB 초기화와 서버 종료 전에 배수한다. 자동 테스트는 OPENAI_API_KEY를 비운다. `docs/plans/working`의 Phase4~6 문서가 실제 완료 범위이며 라이브 AI 품질·운영 배포까지 완료한 것으로 해석하지 않는다.

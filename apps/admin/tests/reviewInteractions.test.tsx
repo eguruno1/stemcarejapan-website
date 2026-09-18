@@ -91,3 +91,16 @@ it('번역 미리보기를 고쳐서 보내면 수정 표시와 함께 전송한
     })
   );
 });
+
+it('번역 미리보기가 열린 상태에서 상담이 종료되면 전송을 막는다', async () => {
+  vi.mocked(previewTranslation).mockResolvedValue({ translatedText: 'こんにちは' });
+  const onSent = vi.fn();
+  const { rerender } = render(<ChatComposer roomId="a" disabled={false} customerLanguage="ja" onSent={onSent} />);
+  fireEvent.change(screen.getByLabelText('답변 입력'), { target: { value: '안녕하세요' } });
+  fireEvent.click(screen.getByText('번역 확인'));
+  await screen.findByDisplayValue('こんにちは');
+  rerender(<ChatComposer roomId="a" disabled={true} customerLanguage="ja" onSent={onSent} />);
+  expect(screen.getByText('이대로 전송')).toBeDisabled();
+  fireEvent.click(screen.getByText('이대로 전송'));
+  expect(sendOperatorMessage).not.toHaveBeenCalled();
+});

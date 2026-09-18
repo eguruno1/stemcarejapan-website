@@ -23,9 +23,10 @@ docker compose -f docker-compose.prod.yml exec postgres \
 # 2) 가장 최근 백업 파일 확인
 docker compose -f docker-compose.prod.yml exec backup ls -lt /backups | head -5
 
-# 3) 리허설 DB 에 복구
-docker compose -f docker-compose.prod.yml exec backup sh -c \
-  'gunzip -c /backups/$(ls -t /backups | head -1) | psql -h postgres -U $POSTGRES_USER -d restore_drill'
+# 3) 위에서 확인한 정확한 파일명을 지정해 리허설 DB에 원자적으로 복구한다.
+docker compose -f docker-compose.prod.yml exec -e POSTGRES_DB=restore_drill backup \
+  bash /backup/restore.sh /backups/stemcare_chat_YYYYMMDD_HHMMSS.sql.gz
+# yes 입력. SQL 오류 시 스키마 교체도 롤백된다.
 ```
 
 ## 검증 (모두 통과해야 한다)
@@ -33,7 +34,7 @@ docker compose -f docker-compose.prod.yml exec backup sh -c \
 ```bash
 docker compose -f docker-compose.prod.yml exec postgres \
   psql -U $POSTGRES_USER -d restore_drill -c "\dt"
-# → 6개 테이블 + _prisma_migrations 가 보인다
+# → 7개 업무 테이블 + _prisma_migrations 가 보인다
 
 docker compose -f docker-compose.prod.yml exec postgres \
   psql -U $POSTGRES_USER -d restore_drill -c "SELECT count(*) FROM chat_rooms;"

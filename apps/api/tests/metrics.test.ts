@@ -111,3 +111,12 @@ describe('GET /api/admin/ops/metrics', () => {
     expect(res.body.metrics.dbOk).toBe(true);
   });
 });
+
+it('운영자가 이미 답변한 오래된 상담은 미응답으로 세지 않는다', async () => {
+  const agent = await loginAgent();
+  const { room } = await createCustomerWithRoom({ status: 'active' });
+  await prisma.message.create({ data: { chatRoomId: room.id, senderType: 'customer', originalText: '질문', visibleText: '질문', createdAt: new Date(Date.now() - 30 * 60000) } });
+  await prisma.message.create({ data: { chatRoomId: room.id, senderType: 'operator', originalText: '답변', visibleText: '답변', createdAt: new Date(Date.now() - 20 * 60000) } });
+  await prisma.chatRoom.update({ where: { id: room.id }, data: { lastMessageAt: new Date(Date.now() - 20 * 60000) } });
+  expect((await agent.get('/api/admin/ops/metrics')).body.metrics.unansweredOver10Min).toBe(0);
+});

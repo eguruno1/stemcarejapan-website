@@ -18,25 +18,23 @@ cp .env.prod.example .env
 
 ```bash
 # 안전한 비밀번호와 시크릿 생성
-openssl rand -base64 32   # POSTGRES_PASSWORD 에 사용
+openssl rand -hex 32      # URL에 안전한 POSTGRES_PASSWORD
 openssl rand -base64 48   # JWT_SECRET 에 사용
 ```
 
 ## 2. HTTPS 인증서 발급 (최초 1회)
 
-먼저 HTTP 만으로 nginx 를 띄워 인증서를 받는다.
+최초에는 인증서 없이 실행할 수 있는 HTTP 전용 구성을 사용한다. 아래 `$DOMAIN`에는 `.env`에 적은 도메인을 셸 변수로도 지정한다.
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d nginx
+export DOMAIN=chat.example.com
+docker compose -f docker-compose.prod.yml -f docker-compose.bootstrap.yml up -d --no-deps nginx
 docker compose -f docker-compose.prod.yml run --rm certbot certonly \
   --webroot -w /var/www/certbot \
-  -d $DOMAIN --email 운영자@이메일 --agree-tos --no-eff-email
-docker compose -f docker-compose.prod.yml restart nginx
+  -d "$DOMAIN" --email 운영자@이메일 --agree-tos --no-eff-email
 ```
 
-인증서 발급 전에는 nginx 가 443 서버 블록의 인증서 파일을 찾지 못해 시작에 실패할 수 있다.
-그 경우 `deploy/nginx/site.conf` 의 443 서버 블록을 잠시 주석 처리해 80(HTTP)만으로 먼저 띄운 뒤,
-인증서 발급이 끝나면 주석을 풀고 `restart nginx` 한다.
+이후 기본 구성으로 `up -d --build`하면 HTTPS 설정으로 전환된다. `certbot`은 도구용 프로필로, 상시 컨테이너가 아니다. 갱신 후 nginx가 새 인증서를 읽도록 호스트의 작업 스케줄러에서 `bash /절대경로/deploy/renew-certificates.sh`를 12시간마다 실행하고 실패 알림을 설정한다. 실제 스케줄 등록과 공개 인증서 발급은 운영 서버에서 수행해야 한다.
 
 ## 3. 전체 배포
 
@@ -54,10 +52,11 @@ docker compose -f docker-compose.prod.yml exec api \
   npx tsx apps/api/prisma/seed.ts
 ```
 
-`.env` 의 `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` 로 계정이 만들어진다(비워두면
-`admin@stemcarejapan.local` / `change-me-1234` 로 만들어지므로 반드시 채워둔다).
-**로그인 후 즉시 비밀번호를 변경한다.** (비밀번호 변경 화면은 아직 없다 - DB 나 시드
-스크립트 재실행으로 바꾼다.)
+운영에서는 `SEED_ADMIN_EMAIL`과 12자 이상의 `SEED_ADMIN_PASSWORD`가 필수이며 기본 비밀번호를 거부한다. 기존 계정 비밀번호를 바꿀 때는 `.env` 수정 후 API 컨테이너를 재생성하고 아래처럼 명시적으로 실행한다. 일반 시드 재실행은 기존 비밀번호를 변경하지 않는다.
+
+```bash
+docker compose -f docker-compose.prod.yml exec -e SEED_RESET_PASSWORD=true api npx tsx apps/api/prisma/seed.ts
+```
 
 ## 5. 동작 확인
 
@@ -95,7 +94,7 @@ docker compose -f docker-compose.prod.yml logs -f nginx
 
 ## 백업/복구
 
-`deploy/backup/backup.sh` 가 `backup` 컨테이너에서 매일 새벽 3시(+ 시작 시
+`deploy/backup/backup.sh` 가 `backup` 컨테이너에서 매일 한국 시각 새벽 3시(+ 시작 시
 1회) 덤프를 만들어 `/backups` 에 7일치를 보관한다. 복구는
 `deploy/backup/restore.sh <백업파일>` 로 한다. 정기 복구 리허설 절차는
 [`backup/RESTORE-DRILL.md`](./backup/RESTORE-DRILL.md) 를 참고한다.

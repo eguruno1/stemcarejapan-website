@@ -13,6 +13,7 @@ export interface ModelCallInput {
   system: string;
   user: string;
   timeoutMs: number;
+  signal?: AbortSignal;
   /** true 면 모델에게 JSON 만 출력하라고 지시한다. */
   jsonMode?: boolean;
 }
@@ -39,7 +40,7 @@ function getClient(): OpenAI {
   return client;
 }
 
-const defaultCaller: ModelCaller = async ({ model, system, user, jsonMode }) => {
+const defaultCaller: ModelCaller = async ({ model, system, user, jsonMode, timeoutMs, signal }) => {
   const response = await getClient().chat.completions.create({
     model,
     messages: [
@@ -47,7 +48,7 @@ const defaultCaller: ModelCaller = async ({ model, system, user, jsonMode }) => 
       { role: 'user', content: user }
     ],
     ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {})
-  });
+  }, { timeout: timeoutMs, maxRetries: 0, signal });
 
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error('모델이 빈 응답을 반환했습니다.');
@@ -84,10 +85,11 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 export async function callModel(input: ModelCallInput): Promise<string> {
   const caller = injectedCaller ?? defaultCaller;
 
+  const controller = new AbortController();
   try {
-    return await withTimeout(caller(input), input.timeoutMs);
+    return await withTimeout(caller({ ...input, signal: controller.signal }), input.timeoutMs);
   } catch (err) {
     if (err instanceof AiUnavailableError) throw err;
     throw new AiUnavailableError('AI 호출에 실패했습니다.', err);
-  }
+  } finally { controller.abort(); }
 }

@@ -1,3 +1,5 @@
+import { rateLimitFor } from '../config';
+import { trackBackground } from '../common/background';
 import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
 import { AppError } from '../common/errors';
@@ -7,7 +9,7 @@ import { prisma } from '../db';
 import { runBotTurn } from '../ai/consultationBot';
 import { translateMessageInBackground } from '../ai/translationPipeline';
 import { requestHandoff } from '../chatRooms/chatRoomService';
-import { createMessageRow, listMessages } from '../messages/messageService';
+import { createMessageResult, listMessages } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
 import { broadcastMessage, broadcastStatus } from './emitters';
 import { broadcastPresence } from './presence';
@@ -44,6 +46,16 @@ function assertRoomAccess(socket: Socket, roomId: string): void {
   if (identity.kind === 'customer' && identity.roomId !== roomId) {
     throw new AppError(403, 'FORBIDDEN', '이 상담방에 접근할 권한이 없습니다.');
   }
+}
+
+const eventWindows = new Map<string, { since: number; count: number }>();
+function allowMessage(key: string): boolean {
+  const now = Date.now();
+  for (const [id, value] of eventWindows) if (now - value.since >= 60_000) eventWindows.delete(id);
+  const window = eventWindows.get(key) ?? { since: now, count: 0 };
+  window.count++;
+  eventWindows.set(key, window);
+  return window.count <= rateLimitFor('RATE_LIMIT_MESSAGE', 60)();
 }
 
 export function registerChatEvents(io: Server, socket: Socket): void {
@@ -136,6 +148,9 @@ export function registerChatEvents(io: Server, socket: Socket): void {
     'chat:message',
     handle(MessageSchema, async ({ roomId, text, clientMessageId }) => {
       assertRoomAccess(socket, roomId);
+      if (!allowMessage(identity.kind === 'customer' ? identity.customerId : identity.operatorId)) {
+        throw new AppError(429, 'TOO_MANY_REQUESTS', '메시지를 너무 빠르게 보내고 있습니다.');
+      }
 
       let originalLanguage: 'ko' | 'ja' | 'unknown' = 'unknown';
       let senderId: string | null = null;
@@ -150,17 +165,7 @@ export function registerChatEvents(io: Server, socket: Socket): void {
         senderId = identity.operatorId;
       }
 
-      // 재전송(같은 clientMessageId)인지 미리 알아둔다 - AI 턴은 새 메시지에만 돌려야
-      // 한다. 재전송에도 매번 돌리면 같은 입력에 안내 문구나 답변이 중복 생성된다.
-      const isRetry = Boolean(
-        await prisma.message.findUnique({
-          where: { chatRoomId_clientMessageId: { chatRoomId: roomId, clientMessageId } }
-        })
-      );
-
-      // createMessageRow 가 방 잠금 안에서 존재 확인·종료 확인·clientMessageId 충돌
-      // 검사를 전부 수행한다. HTTP 라우트와 완전히 같은 검증 로직이다.
-      const row = await createMessageRow({
+      const { row, created } = await createMessageResult({
         chatRoomId: roomId,
         senderType: identity.kind === 'customer' ? 'customer' : 'operator',
         senderId,
@@ -184,8 +189,8 @@ export function registerChatEvents(io: Server, socket: Socket): void {
       // 붙여 보내는 메시지(Task 4)는 여기서 번역하지 않는다 — 대상 언어가 반대다.
       // 고객 메시지에만 AI 가 반응한다. 번역과 병렬로 진행된다.
       if (identity.kind === 'customer') {
-        void translateMessageInBackground(io, row.id);
-        if (!isRetry) void runBotTurn(io, roomId);
+        trackBackground(translateMessageInBackground(io, row.id));
+        if (created) trackBackground(runBotTurn(io, roomId));
       }
     }, clientMessageIdOf)
   );

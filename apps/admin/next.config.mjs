@@ -1,12 +1,12 @@
-import type { NextConfig } from 'next';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
 
-const rootEnv = resolve(__dirname, '../../.env');
+const rootEnv = resolve(dirname(fileURLToPath(import.meta.url)), '../../.env');
 if (existsSync(rootEnv)) loadEnvFile(rootEnv);
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   reactStrictMode: true,
   // E2E 개발 서버가 일반 빌드 산출물을 덮어쓰지 않도록 분리한다.
   distDir: process.env.SCJ_E2E === '1' ? '.next-e2e' : '.next',

@@ -32,13 +32,13 @@ const SENSITIVE_KEYS = new Set([
   'text',
   'message',
   'summary',
-  'replyText'
-]);
+  'replyText', 'comment', 'customerNeeds', 'nextAction', 'reason', 'stack', 'x-visitor-token'
+].map(key => key.toLowerCase()));
 
 const REDACTED = '[REDACTED]';
 
 export function maskPersonalData(value: unknown, depth = 0): unknown {
-  if (depth > 6) return value;
+  if (depth > 6) return REDACTED;
   if (value === null || typeof value !== 'object') return value;
 
   if (Array.isArray(value)) {
@@ -86,10 +86,10 @@ export const logger = pino({
 
 export const httpLogger = pinoHttp({
   logger,
-  genReqId: (req) => (req.headers['x-request-id'] as string) ?? randomUUID(),
+  genReqId: () => randomUUID(),
   // 본문은 아예 로그에 넣지 않는다. 경로와 상태만으로 충분히 디버깅할 수 있다.
   serializers: {
-    req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+    req: (req) => ({ id: req.id, method: req.method, url: req.url?.split('?')[0] }),
     res: (res) => ({ statusCode: res.statusCode })
   },
   customLogLevel: (_req, res, err) => {
@@ -99,15 +99,16 @@ export const httpLogger = pinoHttp({
   }
 });
 
-/** 예외 로깅 공통 헬퍼. Error 는 message/stack 만, 그 외 값은 마스킹해서 남긴다. */
+/** 예외에는 입력 본문이 포함될 수 있으므로 타입·기계 코드만 남긴다. */
 export function logError(err: unknown, msg: string, extra?: Record<string, unknown>): void {
-  logger.error(
-    {
-      ...(extra ? { context: maskPersonalData(extra) } : {}),
-      err: err instanceof Error ? { message: err.message, stack: err.stack } : maskPersonalData(err)
-    },
-    msg
-  );
+  const code = err instanceof Error ? (err as Error & { code?: unknown }).code : undefined;
+  logger.error({
+    ...(extra ? { context: maskPersonalData(extra) } : {}),
+    err: err instanceof Error ? {
+      type: err.name,
+      code: typeof code === 'string' && /^[A-Z0-9_]+$/.test(code) ? code : undefined
+    } : typeof err === 'object' ? maskPersonalData(err) : REDACTED
+  }, msg);
 }
 
 /** AI 호출 실패 등, 서비스는 계속되지만 남겨둘 만한 경고. */

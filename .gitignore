@@ -1,4 +1,10 @@
-docs/
+docs/**
+!docs/plans/
+!docs/plans/working/
+!docs/plans/working/20260904_phase[4-6]_상담채팅시스템개발계획서.md
+!docs/plans/history/
+!docs/plans/history/20260918_phase4-6_review/
+!docs/plans/history/20260918_phase4-6_review/*.md
 node_modules/
 .env
 .env.local

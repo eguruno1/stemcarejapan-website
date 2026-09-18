@@ -77,3 +77,8 @@ describe('maskPersonalData', () => {
     });
   });
 });
+
+it('대소문자·깊은 중첩·평가 의견·예외 상세에서도 개인정보를 반환하지 않는다', () => {
+  const value = { CustomerName: '누출1', comment: '누출2', reason: '누출3', nested: { a: { b: { c: { d: { e: { f: { phone: '누출4' } } } } } } } };
+  expect(JSON.stringify(maskPersonalData(value))).not.toContain('누출');
+});

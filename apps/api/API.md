@@ -146,7 +146,7 @@ REST를 대체하지 않고 얹는다. 저장 로직은 여전히 `createMessage
 | `chat:message:ack` | `{ clientMessageId, message }` | 보낸 사람 본인에게만 |
 | `chat:status` | `{ roomId, status, assignedOperatorId }` | 배정·상태 변경(HTTP 경유 포함) |
 | `chat:presence` | `{ roomId, operatorOnline, anyOperatorOnline }` | DB에 저장하지 않고 현재 소켓 연결을 세어 계산 |
-| `chat:error` | `{ code, message, clientMessageId? }` | `chat:message`/`chat:handoff-request` 실패 시 원래 요청의 `clientMessageId`를 함께 돌려준다 — 없으면 위젯이 어떤 "전송 중" 말풍선을 실패로 바꿔야 할지 알 수 없다 |
+| `chat:error` | `{ code, message, clientMessageId? }` | `chat:message` 실패 시 원래 요청의 `clientMessageId`를 함께 돌려준다 — 없으면 위젯이 어떤 "전송 중" 말풍선을 실패로 바꿔야 할지 알 수 없다 |
 | `rooms:updated` / `rooms:new` | `{ roomId }` | `operators` 방 전체(운영자 목록 화면 갱신용) |
 
 ### unread와 소켓
@@ -160,3 +160,15 @@ REST를 대체하지 않고 얹는다. 저장 로직은 여전히 `createMessage
 소켓 연결이 5초 안에 되지 않거나 CDN이 차단되면 두 클라이언트 모두 조용히 REST 폴링으로
 전환한다(고객 위젯 3초, 관리자 목록 5초·상세 3초). 소켓이 살아 있어도 관리자 화면의 폴링은
 안전망으로 계속 돈다.
+
+
+## Phase 4~6 검토 보완
+
+- `POST /api/public/chat/:roomId/handoff`: X-Visitor-Token 필수. bot → waiting, 중복 요청은 안내를 추가하지 않고 현재 상태 반환. closed는 409. 반환 `{ status }`.
+- `chat:leave { roomId }` / `chat:left { roomId }`: 관리자 방 이동·숨김 시 구독 해제. 한 소켓의 방 이벤트는 순차 처리한다.
+- socket 고객 자격이 일부만 제공돼도 운영자 쿠키로 인증하지 않는다. 운영자 토큰/활성 여부를 이벤트와 메시지 방송 시 재검사한다.
+- 고객 메시지 소켓 전송에도 RATE_LIMIT_MESSAGE 적용(기본 60회/분, 동일 고객 연결 합산). HTTP 조회/폴링에는 메시지 전송 제한을 적용하지 않는다.
+- 신규 저장 여부는 `createMessageResult`에서 같은 잠금으로 판단. 고객 원문은 즉시 응답하고 번역·AI 작업은 별도로 실행한다.
+- 최초 문의의 위험·운영자 요청 패턴에 따라 `/start`가 waiting을 반환할 수 있다. 고정 인사와 초기 문의 번역은 유지한다.
+- 운영 지표의 todayStarted는 한국 날짜 기준. unansweredOver10Min은 마지막 운영자 답변 뒤 고객 메시지가 10분 이상 남은 방 수이며 시스템 안내로 타이머를 초기화하지 않는다.
+- DB 접근 장애 시 인증/집계 자체가 실패할 수 있으므로 metrics 응답의 dbOk만 외부 가용성 모니터로 사용하지 않는다.

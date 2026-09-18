@@ -14,7 +14,8 @@ metricsRoutes.get(
   '/metrics',
   asyncHandler(async (_req, res) => {
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const koreaDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const startOfToday = new Date(Date.UTC(koreaDate.getUTCFullYear(), koreaDate.getUTCMonth(), koreaDate.getUTCDate()) - 9 * 60 * 60 * 1000);
     const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -38,12 +39,15 @@ metricsRoutes.get(
       prisma.chatRoom.count({ where: { status: 'active' } }),
       prisma.chatRoom.count({ where: { status: 'bot' } }),
       prisma.chatRoom.count({ where: { createdAt: { gte: startOfToday } } }),
-      prisma.chatRoom.count({
-        where: {
-          status: { in: ['waiting', 'active'] },
-          lastMessageAt: { lt: tenMinutesAgo }
-        }
-      }),
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT count(*) AS count FROM chat_rooms r
+        WHERE r.status IN ('waiting', 'active') AND EXISTS (
+          SELECT 1 FROM messages c WHERE c.chat_room_id = r.id AND c.sender_type = 'customer'
+          AND c.created_at < ${tenMinutesAgo}
+          AND c.created_at > COALESCE((SELECT max(o.created_at) FROM messages o
+            WHERE o.chat_room_id = r.id AND o.sender_type = 'operator'), '-infinity'::timestamp)
+        )
+      `.then(rows => Number(rows[0].count)),
       prisma.message.count({
         where: { translationStatus: 'failed', createdAt: { gte: dayAgo } }
       }),

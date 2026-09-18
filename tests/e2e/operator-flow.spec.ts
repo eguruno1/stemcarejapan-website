@@ -105,7 +105,7 @@ test('운영자 메모는 고객 화면에 절대 보이지 않는다', async ({
 });
 
 test('로그인 없이 관리자 화면에 접근할 수 없다', async ({ page }) => {
-  await page.goto('http://127.0.0.1:3101/chats');
+  await page.goto('http://127.0.0.1:13101/chats');
 
   await expect(page).toHaveURL(/\/login/);
   await expect(page.locator('input[type="password"]')).toBeVisible();
@@ -116,7 +116,7 @@ test('모바일 화면에서도 상담을 시작할 수 있다', async ({ browse
   const page = await context.newPage();
   await page.addInitScript((api) => {
     (window as Window & { STEMCARE_CHAT_API_URL?: string }).STEMCARE_CHAT_API_URL = api;
-  }, 'http://127.0.0.1:4001');
+  }, 'http://127.0.0.1:14001');
 
   await page.goto(`${WEBSITE_URL}/korea-travel/`);
   await page.evaluate(() => window.localStorage.clear());

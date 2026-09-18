@@ -11,9 +11,12 @@ async function main() {
   const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@stemcarejapan.local';
   const password = process.env.SEED_ADMIN_PASSWORD ?? 'change-me-1234';
 
+  if (process.env.NODE_ENV === 'production' && (!process.env.SEED_ADMIN_EMAIL || !process.env.SEED_ADMIN_PASSWORD || password === 'change-me-1234' || password.length < 12)) {
+    throw new Error('운영 시드에는 이메일과 12자 이상의 새 비밀번호가 필요합니다.');
+  }
   const operator = await prisma.operator.upsert({
     where: { email },
-    update: {},
+    update: process.env.SEED_RESET_PASSWORD === 'true' ? { passwordHash: await bcrypt.hash(password, 10) } : {},
     create: {
       name: '초기 관리자',
       email,

@@ -3,6 +3,7 @@ import type { Server } from 'socket.io';
 import { z } from 'zod';
 import { config } from '../config';
 import { prisma } from '../db';
+import { lockRoom } from '../chatRooms/roomLock';
 import { logError } from '../common/logger';
 import { createMessageRow } from '../messages/messageService';
 import { broadcastMessage, broadcastStatus } from '../realtime/emitters';
@@ -20,7 +21,7 @@ export type BotDecision =
   | { kind: 'skip' };
 
 const BotResponseSchema = z.object({
-  replyText: z.string().min(1),
+  replyText: z.string().trim().min(1).max(2000),
   replyLanguage: z.enum(LANGUAGES),
   handoffRequired: z.boolean(),
   handoffReason: z.string().nullable().optional()
@@ -126,52 +127,46 @@ function countRecentUnanswered(ordered: Array<{ senderType: string; originalText
  * 결정을 실제로 실행한다: 메시지 저장 + 브로드캐스트 + 상태 변경.
  * 이 함수도 예외를 던지지 않는다.
  */
-export async function runBotTurn(io: Server | null, roomId: string): Promise<void> {
+const turns = new Map<string, { promise: Promise<void>; dirty: boolean }>();
+
+export function runBotTurn(io: Server | null, roomId: string): Promise<void> {
+  const existing = turns.get(roomId);
+  if (existing) { existing.dirty = true; return existing.promise; }
+  const task = { promise: Promise.resolve(), dirty: false };
+  turns.set(roomId, task);
+  task.promise = (async () => {
+    do { task.dirty = false; await executeTurn(io, roomId); } while (task.dirty);
+  })().finally(() => turns.delete(roomId));
+  return task.promise;
+}
+
+async function executeTurn(io: Server | null, roomId: string): Promise<void> {
   try {
+    // 모델을 기다리는 동안에는 잠금을 잡지 않는다.
+    const before = await prisma.chatRoom.findUnique({ where: { id: roomId }, include: { customer: true } });
+    if (!before || before.status !== 'bot') return;
     const decision = await generateBotReply({ roomId });
     if (decision.kind === 'skip') return;
-
-    const room = await prisma.chatRoom.findUnique({
-      where: { id: roomId },
-      include: { customer: true }
-    });
-    if (!room) return;
-
-    const customerLanguage = room.customer.preferredLanguage as Language;
-
-    if (decision.kind === 'reply') {
-      const row = await createMessageRow({
+    const row = await prisma.$transaction(async tx => {
+      const room = await lockRoom(tx, roomId);
+      // 운영자 전환·종료 또는 새 고객 메시지 이후의 오래된 답변은 폐기한다.
+      if (room.status !== 'bot' || room.lastMessageAt?.getTime() !== before.lastMessageAt?.getTime()) return null;
+      const language = before.customer.preferredLanguage as Language;
+      if (decision.kind === 'handoff') {
+        await tx.chatRoom.update({ where: { id: roomId }, data: { status: 'waiting' } });
+      }
+      return createMessageRow({
         chatRoomId: roomId,
-        senderType: 'ai',
-        text: decision.text,
-        originalLanguage: decision.language,
-        visibleText: decision.text,
-        translationStatus: 'none'
-      });
-
-      if (io) await broadcastMessage(io, roomId, row);
-      return;
-    }
-
-    // handoff
-    const notice = await createMessageRow({
-      chatRoomId: roomId,
-      senderType: 'system',
-      text: HANDOFF_NOTICE[customerLanguage],
-      visibleText: HANDOFF_NOTICE[customerLanguage],
-      originalLanguage: customerLanguage
+        senderType: decision.kind === 'reply' ? 'ai' : 'system',
+        text: decision.kind === 'reply' ? decision.text : HANDOFF_NOTICE[language],
+        originalLanguage: decision.kind === 'reply' ? decision.language : language
+      }, tx);
     });
-
-    await prisma.chatRoom.update({ where: { id: roomId }, data: { status: 'waiting' } });
-
+    if (!row) return;
     if (io) {
-      await broadcastMessage(io, roomId, notice);
-      broadcastStatus(io, roomId, 'waiting', room.assignedOperatorId);
+      await broadcastMessage(io, roomId, row);
+      if (decision.kind === 'handoff') broadcastStatus(io, roomId, 'waiting', before.assignedOperatorId);
     }
-
-    // 운영자가 상황을 빨리 파악하도록 요약을 만들어 둔다.
-    await generateSummary(roomId);
-  } catch (err) {
-    logError(err, 'consultationBot_unhandled');
-  }
+    if (decision.kind === 'handoff') await generateSummary(roomId);
+  } catch (err) { logError(err, 'consultationBot_unhandled'); }
 }

@@ -120,3 +120,9 @@ describe('AI 첫 인사', () => {
     expect(messages.map((m) => m.senderType)).toEqual(['customer', 'ai']);
   });
 });
+
+it('가입폼에서 운영자를 요청하면 고정 인사 뒤에도 bot 상태에 방치하지 않는다', async () => {
+  const { startChat } = await import('../src/chatRooms/chatRoomService');
+  const result = await startChat({ name: '테스트', phone: '01012345678', preferredLanguage: 'ko', serviceType: 'undecided', privacyAgreed: true, message: '담당자 연결 부탁드립니다' });
+  expect(result.status).toBe('waiting');
+});

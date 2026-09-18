@@ -439,3 +439,22 @@ describe('Phase 4 검토 회귀', () => {
     expect(rooms.has(`room:${b.room.id}`)).toBe(false);
   });
 });
+
+it('소켓 메시지도 동일 고객의 여러 연결을 합쳐 전송 속도를 제한한다', async () => {
+  const previous = process.env.RATE_LIMIT_MESSAGE;
+  process.env.RATE_LIMIT_MESSAGE = '1';
+  try {
+    const { room, visitorToken } = await createCustomerWithRoom({ status: 'active' });
+    const first = await connect({ roomId: room.id, visitorToken });
+    const second = await connect({ roomId: room.id, visitorToken });
+    const ack = waitFor(first, 'chat:message:ack');
+    first.emit('chat:message', { roomId: room.id, text: '첫째', clientMessageId: 'rate-1' });
+    await ack;
+    const error = waitFor<{ code: string; clientMessageId: string }>(second, 'chat:error');
+    second.emit('chat:message', { roomId: room.id, text: '둘째', clientMessageId: 'rate-2' });
+    expect(await error).toMatchObject({ code: 'TOO_MANY_REQUESTS', clientMessageId: 'rate-2' });
+  } finally {
+    if (previous === undefined) delete process.env.RATE_LIMIT_MESSAGE;
+    else process.env.RATE_LIMIT_MESSAGE = previous;
+  }
+});

@@ -301,6 +301,9 @@ function bindThreadActions(elements) {
     stopStream();
     clearSession();
     elements.composerInput.value = '';
+    delete elements.fbStars.dataset.selected;
+    elements.fbComment.value = '';
+    elements.fbStars.querySelectorAll('.fb-star').forEach(star => { star.classList.remove('is-on'); star.setAttribute('aria-checked', 'false'); });
     elements.composerInput.style.height = 'auto';
   });
 }
@@ -330,7 +333,7 @@ function bindFeedback(elements) {
   elements.fbSubmit.addEventListener('click', async () => {
     const session = getSession();
     const rating = Number(elements.fbStars.dataset.selected);
-    if (!session || !rating) return;
+    if (!session || !rating || getState().feedback === 'sending') return;
 
     setFeedbackPhase('sending');
 
@@ -339,8 +342,10 @@ function bindFeedback(elements) {
         rating,
         comment: elements.fbComment.value.trim()
       });
+      if (getSession() !== session) return;
       setFeedbackPhase('done');
     } catch (error) {
+      if (getSession() !== session) return;
       // 이미 평가했다면 감사 문구를 보여주고 끝낸다. 오류로 취급하지 않는다.
       if (error instanceof ChatApiError && error.code === 'ALREADY_SUBMITTED') {
         setFeedbackPhase('already');

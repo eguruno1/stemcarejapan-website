@@ -2,6 +2,7 @@ import type { ChatSummary } from '@prisma/client';
 import { z } from 'zod';
 import { config } from '../config';
 import { prisma } from '../db';
+import { lockRoom } from '../chatRooms/roomLock';
 import { logWarn } from '../common/logger';
 import { callModel } from './aiClient';
 import { SUMMARY_SYSTEM_PROMPT } from './promptTemplates';
@@ -31,13 +32,13 @@ export async function generateSummary(roomId: string): Promise<ChatSummary | nul
   try {
     const messages = await prisma.message.findMany({
       where: { chatRoomId: roomId, senderType: { in: ['customer', 'ai', 'operator'] } },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       take: MAX_HISTORY
     });
 
     if (messages.length === 0) return null;
 
-    const transcript = messages
+    const transcript = messages.reverse()
       .map((m) => {
         const who = m.senderType === 'customer' ? '고객' : m.senderType === 'ai' ? 'AI' : '운영자';
         // 한국어 번역이 있으면 그걸 쓴다. 요약은 한국어로 만든다.
@@ -59,14 +60,18 @@ export async function generateSummary(roomId: string): Promise<ChatSummary | nul
       return null;
     }
 
-    return prisma.chatSummary.create({
-      data: {
-        chatRoomId: roomId,
-        summary: parsed.data.summary,
-        customerNeeds: parsed.data.customerNeeds ?? null,
-        nextAction: parsed.data.nextAction ?? null,
-        riskFlags: parsed.data.riskFlags
-      }
+    return await prisma.$transaction(async tx => {
+      await lockRoom(tx, roomId);
+      if (await tx.message.count({ where: { id: { in: messages.map(m => m.id) } } }) !== messages.length) return null;
+      return tx.chatSummary.create({
+        data: {
+          chatRoomId: roomId,
+          summary: parsed.data.summary,
+          customerNeeds: parsed.data.customerNeeds ?? null,
+          nextAction: parsed.data.nextAction ?? null,
+          riskFlags: parsed.data.riskFlags
+        }
+      });
     });
   } catch (err) {
     logWarn('summarizer_failed', { reason: err instanceof Error ? err.message : String(err) });

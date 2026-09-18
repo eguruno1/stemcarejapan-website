@@ -160,3 +160,15 @@ describe('메시지 자동 번역', () => {
     expect(called).toBe(false);
   });
 });
+
+it('선호 언어와 실제 본문이 달라도 실제 일본어를 한국어로 번역한다', async () => {
+  const { room, customer } = await createCustomerWithRoom({ preferredLanguage: 'ko' });
+  const message = await createMessageRow({ chatRoomId: room.id, senderType: 'customer', senderId: customer.id, text: 'こんにちは。', originalLanguage: 'ko' });
+  let calls = 0;
+  setModelCaller(async () => { calls++; return '안녕하세요.'; });
+  await Promise.all([translateMessageInBackground(null, message.id), translateMessageInBackground(null, message.id)]);
+  const updated = await prisma.message.findUniqueOrThrow({ where: { id: message.id } });
+  expect(calls).toBe(1);
+  expect(updated.originalLanguage).toBe('ja');
+  expect(updated.translatedText).toBe('안녕하세요.');
+});

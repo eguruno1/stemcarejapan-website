@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-const api = vi.hoisted(() => ({ startChat: vi.fn(), sendMessage: vi.fn() }));
+const api = vi.hoisted(() => ({ startChat: vi.fn(), sendMessage: vi.fn(), submitFeedback: vi.fn() }));
 vi.mock('../../js/chat/api.js', () => ({ ...api, ChatApiError: class extends Error {} }));
 vi.mock('../../js/chat/poller.js', () => ({ pollOnce: vi.fn(), startPolling: vi.fn(), stopPolling: vi.fn() }));
 let state;
@@ -37,4 +37,20 @@ it('새 상담을 시작한 뒤 이전 전송 응답이 도착해도 섞이지 �
   finish({ message: { id: 'old', senderType: 'customer', createdAt: new Date().toISOString(), visibleText: '문의' } });
   await Promise.resolve(); await Promise.resolve();
   expect(state.getState().messages).toEqual([]);
+});
+
+it('이전 상담 평가 응답이 새 상담의 평가 상태를 덮어쓰지 않는다', async () => {
+  let finish; api.submitFeedback.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  state.saveSession({ roomId: 'a', visitorToken: 'token' }); state.setPhase('chat');
+  state.setRoom({ status: 'active' }); state.setRoom({ status: 'closed' });
+  document.querySelector('.fb-star[data-rating="5"]').click();
+  document.querySelector('[data-role="fb-comment"]').value = '이전 고객 의견';
+  document.querySelector('[data-role="fb-submit"]').click();
+  expect(state.getState().feedback).toBe('sending');
+  document.querySelector('[data-role="new-chat"]').click();
+  state.saveSession({ roomId: 'b', visitorToken: 'new-token' });
+  finish({ feedback: {} }); await Promise.resolve(); await Promise.resolve();
+  expect(state.getState().feedback).toBe('hidden');
+  expect(document.querySelector('[data-role="fb-comment"]').value).toBe('');
+  expect(document.querySelector('[data-role="fb-stars"]').dataset.selected).toBeUndefined();
 });

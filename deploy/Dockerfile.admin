@@ -25,6 +25,10 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
+ARG NEXT_BASE_PATH
+ENV NEXT_BASE_PATH=$NEXT_BASE_PATH
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
@@ -33,7 +37,7 @@ RUN npm ci --workspaces --include-workspace-root --omit=dev
 
 COPY --from=builder /app/packages/shared/dist packages/shared/dist
 COPY --from=builder /app/apps/admin/.next apps/admin/.next
-COPY --from=builder /app/apps/admin/next.config.ts apps/admin/
+COPY --from=builder /app/apps/admin/next.config.mjs apps/admin/
 
 USER node
 EXPOSE 3100

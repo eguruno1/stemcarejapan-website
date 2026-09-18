@@ -1,9 +1,10 @@
+import path from 'node:path';
 import type { Browser, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { ADMIN, ADMIN_URL, API } from './fixtures';
 
 export { API, ADMIN_URL, ADMIN };
-export const WEBSITE_URL = 'http://127.0.0.1:8081';
+export const WEBSITE_URL = 'http://127.0.0.1:18081';
 
 /**
  * 고객 브라우저 창을 열고 상담을 시작한다.
@@ -21,6 +22,7 @@ export async function startCustomerChat(
     (window as Window & { STEMCARE_CHAT_API_URL?: string }).STEMCARE_CHAT_API_URL = api;
   }, API);
 
+  await page.route('https://cdn.jsdelivr.net/npm/socket.io-client@*/dist/socket.io.min.js', route => route.fulfill({ path: path.resolve('node_modules/socket.io-client/dist/socket.io.min.js'), contentType: 'application/javascript' }));
   await page.goto(`${WEBSITE_URL}/korea-travel/`);
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();

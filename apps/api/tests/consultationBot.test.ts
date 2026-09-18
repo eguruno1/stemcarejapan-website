@@ -230,3 +230,31 @@ describe('runBotTurn', () => {
     expect(summary?.riskFlags).toContain('가격문의');
   });
 });
+
+it.each(['active', 'waiting', 'closed'])('AI 대기 중 %s로 바뀐 방에는 뒤늦게 끼어들지 않는다', async status => {
+  const { updateRoomStatus } = await import('../src/chatRooms/chatRoomService');
+  const { operator } = await createOperator();
+  const { room, customer } = await createCustomerWithRoom();
+  await createMessageRow({ chatRoomId: room.id, senderType: 'customer', senderId: customer.id, text: '안녕하세요' });
+  let finish!: (value: string) => void;
+  let started!: () => void;
+  const startedPromise = new Promise<void>(r => { started = r; });
+  setModelCaller(() => { started(); return new Promise(r => { finish = r; }); });
+  const turn = runBotTurn(null, room.id);
+  await startedPromise;
+  await updateRoomStatus(room.id, status as 'active' | 'waiting' | 'closed', operator.id);
+  finish(botJson({ handoffRequired: true }));
+  await turn;
+  expect((await prisma.chatRoom.findUniqueOrThrow({ where: { id: room.id } })).status).toBe(status);
+  expect(await prisma.message.count({ where: { chatRoomId: room.id, senderType: 'ai' } })).toBe(0);
+  expect(await prisma.message.count({ where: { chatRoomId: room.id, senderType: 'system' } })).toBe(status === 'closed' ? 1 : 0);
+});
+
+it('같은 고객 메시지의 동시 AI 턴은 답변을 한 번만 저장한다', async () => {
+  const { room, customer } = await createCustomerWithRoom();
+  await createMessageRow({ chatRoomId: room.id, senderType: 'customer', senderId: customer.id, text: '안녕하세요' });
+  const caller = vi.fn(async () => botJson()); setModelCaller(caller);
+  await Promise.all([runBotTurn(null, room.id), runBotTurn(null, room.id), runBotTurn(null, room.id)]);
+  expect(caller).toHaveBeenCalledTimes(1);
+  expect(await prisma.message.count({ where: { chatRoomId: room.id, senderType: 'ai' } })).toBe(1);
+});

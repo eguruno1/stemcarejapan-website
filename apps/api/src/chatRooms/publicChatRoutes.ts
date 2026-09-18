@@ -1,11 +1,13 @@
+import { trackBackground } from '../common/background';
 import { Router } from 'express';
 import { z } from 'zod';
 import { LANGUAGES, SERVICE_TYPES } from '@stemcare/shared';
 import { asyncHandler } from '../common/asyncHandler';
 import { validateBody } from '../common/validate';
 import { prisma } from '../db';
-import { createMessageRow, listMessages } from '../messages/messageService';
+import { createMessageResult, listMessages } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
+import { generateSummary } from '../ai/summarizer';
 import { runBotTurn } from '../ai/consultationBot';
 import { translateMessageInBackground } from '../ai/translationPipeline';
 import { submitFeedback } from '../feedback/feedbackService';
@@ -54,9 +56,10 @@ publicChatRoutes.post(
       await broadcastMessage(io, result.roomId, greeting);
     }
 
-    // 인사가 항상 마지막 메시지로 저장되므로(startChat 참고) runBotTurn 은
-    // 여기서 부를 필요가 없다 - "마지막이 고객 메시지일 때만" 답하는데
-    // 이 시점의 마지막 메시지는 항상 방금 만든 인사(ai)다.
+    const first = await prisma.message.findFirst({ where: { chatRoomId: result.roomId, senderType: 'customer' } });
+    if (first) trackBackground(translateMessageInBackground(io, first.id));
+    if (result.status === 'waiting') trackBackground(generateSummary(result.roomId));
+    // 일반 첫 문의는 고정 인사로 응답하고, 위험/운영자 요청은 startChat에서 즉시 전환한다.
     res.status(201).json(result);
   })
 );
@@ -91,17 +94,7 @@ publicChatRoutes.post(
     const body = req.body as z.infer<typeof CustomerMessageSchema>;
     const customer = await prisma.customer.findUniqueOrThrow({ where: { id: room.customerId } });
 
-    // 재전송(같은 clientMessageId)인지 미리 알아둔다 - AI 턴은 새 메시지에만 돌려야
-    // 한다. 재전송에도 매번 돌리면 같은 입력에 안내 문구나 답변이 중복 생성된다.
-    const isRetry = body.clientMessageId
-      ? Boolean(
-          await prisma.message.findUnique({
-            where: { chatRoomId_clientMessageId: { chatRoomId: room.id, clientMessageId: body.clientMessageId } }
-          })
-        )
-      : false;
-
-    const row = await createMessageRow({
+    const { row, created } = await createMessageResult({
       chatRoomId: room.id,
       senderType: 'customer',
       senderId: customer.id,
@@ -114,8 +107,8 @@ publicChatRoutes.post(
     if (io) await broadcastMessage(io, room.id, row);
 
     // 원문을 먼저 응답한 뒤 번역을 시작한다. await 하지 않는다.
-    void translateMessageInBackground(io, row.id);
-    if (!isRetry) void runBotTurn(io, room.id);
+    trackBackground(translateMessageInBackground(io, row.id));
+    if (created) trackBackground(runBotTurn(io, room.id));
 
     res.status(201).json({ message: toMessageDTO(row, 'customer') });
   })

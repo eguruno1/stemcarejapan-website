@@ -11,7 +11,8 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     datasourceUrl: config.databaseUrl,
-    log: config.nodeEnv === 'development' ? ['warn', 'error'] : ['error']
+    // Prisma 예외는 호출부의 logError로만 기록한다. 원본 예외에는 쿼리 입력이 포함될 수 있다.
+    log: []
   });
 
 if (config.nodeEnv !== 'production') {

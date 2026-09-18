@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { prisma } from '../db';
+import { lockRoom } from '../chatRooms/roomLock';
 import { logger } from '../common/logger';
 
 /**
@@ -38,17 +39,20 @@ export async function pseudonymizeOldCustomers(now = new Date()): Promise<number
 
   let count = 0;
   for (const target of targets) {
-    await prisma.customer.update({
-      where: { id: target.id },
-      data: {
-        name: `고객_${randomBytes(2).toString('hex')}`,
-        phone: '[삭제됨]',
-        email: null,
-        memo: null,
-        pseudonymizedAt: now
-      }
+    count += await prisma.$transaction(async tx => {
+      const rooms = await tx.chatRoom.findMany({ where: { customerId: target.id }, orderBy: { id: 'asc' } });
+      for (const entry of rooms) await lockRoom(tx, entry.id);
+      const eligible = await tx.customer.findFirst({ where: {
+        id: target.id, pseudonymizedAt: null,
+        chatRooms: { every: { status: 'closed', closedAt: { lt: cutoff } }, some: {} }
+      } });
+      if (!eligible) return 0;
+      await tx.customer.update({ where: { id: target.id }, data: {
+        name: `고객_${randomBytes(2).toString('hex')}`, phone: '[삭제됨]',
+        email: null, memo: null, pseudonymizedAt: now
+      } });
+      return 1;
     });
-    count += 1;
   }
 
   if (count > 0) {
@@ -68,26 +72,20 @@ export async function deleteOldMessages(now = new Date()): Promise<number> {
 
   if (oldRooms.length === 0) return 0;
 
-  const roomIds = oldRooms.map((room) => room.id);
-
-  const result = await prisma.message.deleteMany({
-    where: { chatRoomId: { in: roomIds } }
-  });
-
-  // 요약도 대화 내용을 담고 있으므로 함께 지운다.
-  await prisma.chatSummary.deleteMany({ where: { chatRoomId: { in: roomIds } } });
-  await prisma.operatorNote.deleteMany({ where: { chatRoomId: { in: roomIds } } });
-  // 평가 의견란에도 개인적인 내용이 들어갈 수 있다.
-  await prisma.chatFeedback.deleteMany({ where: { chatRoomId: { in: roomIds } } });
-
-  if (result.count > 0) {
-    logger.info(
-      { count: result.count, policy: 'delete_messages', afterDays: DELETE_MESSAGES_AFTER_DAYS },
-      'retention_done'
-    );
+  let deleted = 0;
+  for (const candidate of oldRooms) {
+    deleted += await prisma.$transaction(async tx => {
+      const room = await lockRoom(tx, candidate.id);
+      if (room.status !== 'closed' || !room.closedAt || room.closedAt >= cutoff) return 0;
+      const result = await tx.message.deleteMany({ where: { chatRoomId: room.id } });
+      await tx.chatSummary.deleteMany({ where: { chatRoomId: room.id } });
+      await tx.operatorNote.deleteMany({ where: { chatRoomId: room.id } });
+      await tx.chatFeedback.deleteMany({ where: { chatRoomId: room.id } });
+      return result.count;
+    });
   }
-
-  return result.count;
+  if (deleted) logger.info({ count: deleted, policy: 'delete_messages' }, 'retention_done');
+  return deleted;
 }
 
 export async function runRetention(now = new Date()): Promise<{ pseudonymized: number; deleted: number }> {

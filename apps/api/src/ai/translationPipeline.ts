@@ -23,7 +23,7 @@ const OPERATOR_LANGUAGE: Language = 'ko';
  * - 원문은 이미 저장·전달된 뒤에 호출된다. 여기서 실패해도 상담은 계속된다.
  * - io 가 null 이면 (테스트 등) DB만 갱신한다.
  */
-export async function translateMessageInBackground(
+async function translateMessage(
   io: Server | null,
   messageId: string
 ): Promise<void> {
@@ -35,20 +35,23 @@ export async function translateMessageInBackground(
 
     if (!message) return;
 
-    // 시스템 메시지는 이미 양쪽 언어로 준비된 안내문이므로 번역하지 않는다.
-    if (message.senderType === 'system') return;
+    // 이 파이프라인은 고객 원문을 운영자 한국어로 번역하는 경로다.
+    if (message.senderType !== 'customer') return;
 
     // 이미 번역이 붙어 있으면 (운영자가 미리보기로 번역해 보낸 경우) 건너뛴다.
     if (message.translationStatus === 'done' || message.translationStatus === 'edited') return;
 
     const customerLanguage = message.chatRoom.customer.preferredLanguage as Language;
     const stored = message.originalLanguage as DetectedLanguage;
-    const detected = stored === 'unknown' ? detectLanguage(message.originalText) : stored;
-    const source = resolveLanguage(detected, customerLanguage);
+    const detected = detectLanguage(message.originalText);
+    const source = resolveLanguage(detected, stored === 'unknown' ? customerLanguage : stored);
     const target = OPERATOR_LANGUAGE;
 
     // 이미 한국어면 번역할 게 없다. (한국어 고객의 한국어 메시지가 이 경우다)
-    if (source === target) return;
+    if (source === target) {
+      await prisma.message.update({ where: { id: messageId }, data: { originalLanguage: source, translationStatus: 'none' } });
+      return;
+    }
 
     await prisma.message.update({
       where: { id: messageId },
@@ -78,11 +81,20 @@ export async function translateMessageInBackground(
   }
 }
 
+const translations = new Map<string, Promise<void>>();
+export function translateMessageInBackground(io: Server | null, messageId: string): Promise<void> {
+  const current = translations.get(messageId);
+  if (current) return current;
+  const task = translateMessage(io, messageId).finally(() => translations.delete(messageId));
+  translations.set(messageId, task);
+  return task;
+}
+
 /** 운영자가 실패한 번역을 다시 시도할 때 쓴다. */
 export async function retryTranslation(io: Server | null, messageId: string): Promise<void> {
-  await prisma.message.update({
-    where: { id: messageId },
-    data: { translationStatus: 'none' }
-  });
+  if (translations.has(messageId)) { await translations.get(messageId); return; }
+  const message = await prisma.message.findUnique({ where: { id: messageId } });
+  if (!message || message.senderType !== 'customer' || ['done', 'edited'].includes(message.translationStatus)) return;
+  await prisma.message.update({ where: { id: messageId }, data: { translationStatus: 'none' } });
   await translateMessageInBackground(io, messageId);
 }

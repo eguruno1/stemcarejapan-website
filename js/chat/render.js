@@ -141,7 +141,7 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
           <div class="fb-stars" data-role="fb-stars" role="radiogroup" data-i18n-aria="feedback.title">
             ${feedbackStarsHtml()}
           </div>
-          <textarea data-role="fb-comment" rows="2" data-i18n-placeholder="feedback.comment"></textarea>
+          <textarea data-role="fb-comment" rows="2" maxlength="1000" data-i18n-placeholder="feedback.comment"></textarea>
           <div class="fb-actions">
             <button type="button" data-role="fb-skip" data-i18n="feedback.skip"></button>
             <button type="button" data-role="fb-submit" data-i18n="feedback.submit" disabled></button>

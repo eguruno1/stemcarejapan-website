@@ -144,8 +144,18 @@ npm run dev:admin
 
 ### E2E 실행 환경
 
-`npm run test:e2e`는 shared/API를 빌드하고 테스트용 홈페이지(127.0.0.1:8081), API(4001), 관리자(3101)를 자동 실행·종료한다. 일반 개발 서버를 재사용하지 않는다. 관리자 테스트 산출물은 `.next-e2e/`로 분리한다.
+`npm run test:e2e`는 shared/API를 빌드하고 테스트용 홈페이지(127.0.0.1:18081), API(14001), 관리자(13101)를 자동 실행·종료한다. 일반 개발 서버를 재사용하지 않는다. 관리자 테스트 산출물은 `.next-e2e/`로 분리한다.
 
 `.env`의 `TEST_DATABASE_URL`이 필요하며 Phase 1과 동일한 안전 검사를 적용한다. 테스트 전용 운영자를 upsert하고 테스트 상담을 이 DB에 생성한다. API 테스트와 같은 DB를 사용하므로 **동시에 실행하지 않는다**. 개발 DB의 seed 계정이나 비밀번호에는 의존하지 않는다. Chromium 설치가 필요하면 `npx playwright install chromium`을 실행한다.
 
 위젯 API 기본 주소는 localhost 환경의 4000 포트, 그 외에는 같은 출처다. 필요할 때 모듈 로드 전에 `window.STEMCARE_CHAT_API_URL`을 설정할 수 있고, E2E는 이를 이용해 테스트 API를 지정한다. 실제 배포에서는 접속 가능한 API와 CORS 설정을 먼저 준비해야 한다.
+
+### Phase 4~6 검토 반영 (2026-09-18)
+
+- 위젯: 소켓 연결/입장 실패와 끊김 시 REST fallback, 세션별 이벤트 격리. 인계 요청은 `/api/public/chat/:roomId/handoff`의 확정 응답으로 처리한다.
+- AI: 방별 작업 순서 보장, 응답 저장 직전 방 잠금/상태/최신 메시지 재검사. 초기 문의도 번역하고 운영자 요청·민감 문의는 waiting 전환한다.
+- 운영: 메시지·요약·메모·평가 삭제를 방별 트랜잭션으로 처리하고 재개방 여부를 재확인한다. 연락처 180일 처리는 대화 본문까지 완전 익명화하는 기능이 아니다.
+- 검증: E2E 전용 포트는 홈페이지 18081, API 14001, 관리자 13101이다. 자동 테스트는 OpenAI 키를 강제로 비워 외부 AI 호출을 하지 않는다.
+- 백업/복구는 Bash + pipefail, 완성된 백업만 공개, 복구 SQL 오류는 전체 롤백한다. `python3 tests/ops/test_backup_scripts.py`로 실패 경로를 확인한다.
+- 운영자 설정은 `next.config.mjs`이며, 이미지 빌드/실행에 같은 `/admin` basePath를 전달한다.
+- 실제 AI 품질, 공개 HTTPS 발급·갱신 스케줄, 운영 서버 배포 승인은 별도 확인 대상이다. [배포 절차](deploy/DEPLOY.md)와 [체크리스트](CHECKLIST.md)를 따른다.

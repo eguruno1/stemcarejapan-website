@@ -179,3 +179,20 @@ describe('runRetention', () => {
     expect(result.deleted).toBe(1);
   });
 });
+
+it('삭제 대상으로 조회된 뒤 다시 열린 방의 대화는 삭제하지 않는다', async () => {
+  const { vi } = await import('vitest');
+  const { room } = await createCustomerWithRoom();
+  await createMessageRow({ chatRoomId: room.id, senderType: 'customer', text: '보존 대상' });
+  await prisma.chatRoom.update({ where: { id: room.id }, data: { status: 'closed', closedAt: daysAgo(400) } });
+  const findMany = prisma.chatRoom.findMany.bind(prisma.chatRoom);
+  const spy = vi.spyOn(prisma.chatRoom, 'findMany').mockImplementationOnce(async args => {
+    const rows = await findMany(args);
+    await prisma.chatRoom.update({ where: { id: room.id }, data: { status: 'active', closedAt: null } });
+    return rows;
+  });
+  try {
+    expect(await deleteOldMessages()).toBe(0);
+    expect(await prisma.message.count()).toBe(1);
+  } finally { spy.mockRestore(); }
+});

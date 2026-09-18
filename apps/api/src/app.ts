@@ -33,7 +33,9 @@ export function createApp(): Express {
   // limiter 는 라우터보다 먼저 등록해야 한다 - 미들웨어는 등록 순서대로 실행된다.
   app.use('/api/admin/auth/login', loginLimiter);
   app.use('/api/public/chat/start', publicChatLimiter);
-  app.use('/api/public/chat', messageLimiter);
+  app.post('/api/public/chat/:roomId/messages', messageLimiter);
+  app.post('/api/public/chat/:roomId/handoff', messageLimiter);
+  app.post('/api/public/chat/:roomId/feedback', messageLimiter);
 
   app.use('/api/admin/auth', authRoutes);
   app.use('/api/admin/chat-rooms', adminChatRoutes);

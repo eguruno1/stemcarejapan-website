@@ -15,6 +15,7 @@ export function TranslationPreview({
   targetLanguage,
   edited,
   busy,
+  disabled = false,
   onTranslatedChange,
   onSend,
   onCancel,
@@ -27,6 +28,7 @@ export function TranslationPreview({
   targetLanguage: Language;
   edited: boolean;
   busy: boolean;
+  disabled?: boolean;
   onTranslatedChange: (value: string) => void;
   onSend: () => void;
   onCancel: () => void;
@@ -63,7 +65,7 @@ export function TranslationPreview({
         <button
           type="button"
           onClick={onRetry}
-          disabled={busy}
+          disabled={busy || disabled}
           style={{
             marginLeft: 'auto',
             border: 'none',
@@ -83,7 +85,7 @@ export function TranslationPreview({
         onChange={(e) => onTranslatedChange(e.target.value)}
         rows={3}
         maxLength={2000}
-        disabled={busy}
+        disabled={busy || disabled}
         aria-label="번역문 확인·수정"
         style={{ resize: 'vertical', marginBottom: 8 }}
       />
@@ -95,10 +97,10 @@ export function TranslationPreview({
       )}
 
       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-        <Button variant="secondary" onClick={onCancel} disabled={busy}>
+        <Button variant="secondary" onClick={onCancel} disabled={busy || disabled}>
           취소
         </Button>
-        <Button variant="primary" onClick={onSend} disabled={busy || translated.trim() === ''}>
+        <Button variant="primary" onClick={onSend} disabled={busy || disabled || translated.trim() === '' || translated.trim().length > 2000}>
           {busy ? '전송 중…' : '이대로 전송'}
         </Button>
       </div>

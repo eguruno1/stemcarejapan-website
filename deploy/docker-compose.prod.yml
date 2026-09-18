@@ -22,6 +22,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      TZ: Asia/Seoul
       API_PORT: 4000
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
@@ -81,20 +82,22 @@ services:
     volumes:
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot
-    # 12시간마다 인증서 갱신을 시도한다.
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    profiles: [tools]
+    entrypoint: [certbot]
+    command: [renew]
 
   backup:
     image: postgres:16
     restart: unless-stopped
     environment:
+      TZ: Asia/Seoul
       PGPASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - ./backup:/backup
       - backup_data:/backups
-    entrypoint: ["/bin/sh", "/backup/backup.sh"]
+    entrypoint: ["/bin/bash", "/backup/backup.sh"]
     depends_on:
       postgres:
         condition: service_healthy

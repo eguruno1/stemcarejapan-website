@@ -54,7 +54,7 @@ export function ChatComposer({
     },
     viaDraft: boolean
   ) {
-    if (sendingRef.current) return;
+    if (disabled || sendingRef.current) return;
     sendingRef.current = true;
     const key = `${payload.originalText}::${payload.originalLanguage}::${payload.translatedText ?? ''}`;
     if (retry.current?.key !== key) {
@@ -152,7 +152,7 @@ export function ChatComposer({
   }
 
   async function handleSendDraft() {
-    if (!draft || draft.translated.trim() === '') return;
+    if (disabled || draftBusy || !draft || draft.translated.trim() === '' || draft.translated.trim().length > 2000) return;
     await sendMessage(
       {
         originalText: draft.originalText,
@@ -187,6 +187,7 @@ export function ChatComposer({
           targetLanguage={draft.targetLanguage}
           edited={draft.edited}
           busy={draftBusy}
+          disabled={disabled}
           onTranslatedChange={handleDraftChange}
           onSend={() => void handleSendDraft()}
           onCancel={handleCancelDraft}

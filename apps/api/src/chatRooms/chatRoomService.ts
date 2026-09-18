@@ -1,3 +1,4 @@
+import { shouldHandoff } from '../ai/handoffDetector';
 import type { ChatRoom, Message, Prisma } from '@prisma/client';
 import type {
   ChatRoomDetail,
@@ -85,6 +86,12 @@ export async function startChat(input: StartChatRequest): Promise<StartChatResul
       originalLanguage: input.preferredLanguage
     }, tx);
 
+    if (firstMessage && shouldHandoff({ text: firstMessage, unansweredCount: 0 }).required) {
+      const waiting = await tx.chatRoom.update({ where: { id: room.id }, data: { status: 'waiting' } });
+      await createMessageRow({ chatRoomId: room.id, senderType: 'system', originalLanguage: input.preferredLanguage,
+        text: input.preferredLanguage === 'ja' ? '担当者におつなぎいたします。少々お待ちください。' : '담당자에게 연결해 드리겠습니다. 잠시만 기다려주세요.' }, tx);
+      return { customer, room: waiting, greeting };
+    }
     return { customer, room, greeting };
   });
 

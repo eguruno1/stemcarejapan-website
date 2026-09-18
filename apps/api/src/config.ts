@@ -68,8 +68,11 @@ export function assertProductionConfig(): void {
     problems.push('WEBSITE_ORIGIN / ADMIN_ORIGIN 이 설정되지 않았습니다.');
   }
 
-  if ((process.env.WEBSITE_ORIGIN ?? '').startsWith('http://')) {
-    problems.push('운영 환경에서는 HTTPS 주소를 사용해야 합니다.');
+  for (const name of ['WEBSITE_ORIGIN', 'ADMIN_ORIGIN']) {
+    try {
+      const url = new URL(process.env[name] ?? '');
+      if (url.protocol !== 'https:' || url.origin !== process.env[name]) throw new Error();
+    } catch { problems.push(`${name}은 경로가 없는 HTTPS origin이어야 합니다.`); }
   }
 
   if (problems.length > 0) {

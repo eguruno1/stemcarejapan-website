@@ -85,3 +85,12 @@ it('전송 서비스도 종료 상태를 확인하고 동시 재전송은 한 �
   await expect(messageService.createMessage({ ...input, clientMessageId: 'next' })).rejects.toMatchObject({ code: 'ROOM_CLOSED' });
   expect(await prisma.message.count()).toBe(1);
 });
+
+it('동시 재전송의 신규 저장 여부를 원자적으로 한 번만 반환한다', async () => {
+  const { createMessageResult } = await import('../src/messages/messageService');
+  const { room, customer } = await createCustomerWithRoom();
+  const input = { chatRoomId: room.id, senderType: 'customer' as const, senderId: customer.id, text: '한 번', clientMessageId: 'same-concurrent' };
+  const results = await Promise.all([createMessageResult(input), createMessageResult(input)]);
+  expect(results.filter(r => r.created)).toHaveLength(1);
+  expect(results[0].row.id).toBe(results[1].row.id);
+});

@@ -75,3 +75,15 @@ export async function listMessages(chatRoomId: string, viewer: Viewer, db: Prism
   });
   return rows.map((row) => toMessageDTO(row, viewer));
 }
+
+/** 새 저장 여부도 같은 방 잠금 안에서 판단한다. HTTP/소켓 동시 재시도에 공통 적용. */
+export async function createMessageResult(input: CreateMessageInput): Promise<{ row: Message; created: boolean }> {
+  return prisma.$transaction(async tx => {
+    await lockRoom(tx, input.chatRoomId);
+    const existing = input.clientMessageId ? await tx.message.findUnique({ where: {
+      chatRoomId_clientMessageId: { chatRoomId: input.chatRoomId, clientMessageId: input.clientMessageId }
+    } }) : null;
+    const row = await createMessageRow(input, tx);
+    return { row, created: !existing };
+  });
+}

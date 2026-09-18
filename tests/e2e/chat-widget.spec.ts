@@ -309,3 +309,24 @@ test.describe('고객 채팅 위젯', () => {
     await expect(widget(page).locator('select[name="serviceType"]')).toHaveValue('');
   });
 });
+
+test('소켓이 막혀도 담당자 요청은 waiting 상태로 전환된다', async ({ page }) => {
+  await page.route('**/socket.io/**', route => route.abort());
+  await openWidget(page); await startChat(page);
+  await widget(page).locator('[data-role="handoff"]').click();
+  await expect(widget(page).locator('[data-role="status-label"]')).toContainText('担当者の接続待ち');
+});
+
+test('실시간 연결을 확인하고 쿠키가 있어도 고객 메시지로 전송한다', async ({ page }) => {
+  await page.request.post(`${API}/api/admin/auth/login`, { data: ADMIN });
+  await openWidget(page); await startChat(page);
+  await expect.poll(() => page.evaluate(async () => {
+    // @ts-expect-error browser ES module
+    const state = await import('/js/chat/state.js'); return state.getState().transport;
+  })).toBe('socket');
+  const w = widget(page);
+  await w.locator('.consult-chat-composer textarea').fill('顧客として送信');
+  await w.locator('.consult-chat-composer button').click();
+  await expect(w.locator('.consult-chat-msg[data-state]')).toHaveCount(0);
+  await expect(w.locator('.consult-chat-msg[data-sender="customer"]', { hasText: '顧客として送信' })).toHaveCount(1);
+});
