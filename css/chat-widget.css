@@ -1,0 +1,404 @@
+/* =============================================
+   상담 채팅 위젯 - 채팅 화면 (Phase 2)
+
+   이 파일은 style.css 의 .consult-chat* 기본 스타일 "다음에" 읽혀야 한다.
+   패널을 세로 flex 로 바꾸는 규칙이 style.css 를 이겨야 하기 때문이다.
+
+   korea-travel 페이지는 style.css 를 쓰지 않으므로,
+   파일 아래쪽 `.chat-standalone` 블록이 기본 스타일을 대신 제공한다.
+   ============================================= */
+
+.consult-chat-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 560px);
+}
+
+/* 두 화면(시작 폼 / 채팅)은 한 번에 하나만 보인다. */
+.consult-chat-stage {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* display:flex 가 [hidden] 을 이기므로 명시적으로 눌러준다. */
+.consult-chat-stage[hidden] { display: none; }
+
+/* 폼이 패널보다 길면 폼 안에서 스크롤한다. (패널 밖으로 잘리지 않게) */
+.consult-chat-stage[data-stage='form'] { overflow-y: auto; }
+
+/* ---------- 상태 표시줄 ---------- */
+.consult-chat-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #5d6b7f;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+  flex: none;
+}
+
+.consult-chat-statusbar .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9aa6b6;
+  flex: none;
+}
+.consult-chat-statusbar[data-status='bot'] .dot { background: #6b8ec9; }
+.consult-chat-statusbar[data-status='waiting'] .dot { background: #d99a2b; }
+.consult-chat-statusbar[data-status='active'] .dot { background: #2f9e5e; }
+.consult-chat-statusbar[data-status='closed'] .dot { background: #9aa6b6; }
+
+.consult-chat-statusbar .reconnecting {
+  margin-left: auto;
+  color: #c07a2b;
+}
+.consult-chat-statusbar .reconnecting[hidden] { display: none; }
+
+/* ---------- 메시지 목록 ---------- */
+/* '새 메시지' 버튼을 메시지 목록 위에 띄우기 위한 기준 상자 */
+.consult-chat-threadwrap {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.consult-chat-thread {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 200px;
+}
+
+.consult-chat-msg {
+  max-width: 82%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  flex: none;
+}
+
+.consult-chat-msg[data-sender='customer'] {
+  align-self: flex-end;
+  background: #0b1d3a;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.consult-chat-msg[data-sender='operator'],
+.consult-chat-msg[data-sender='ai'] {
+  align-self: flex-start;
+  background: #f1f3f6;
+  color: #16202e;
+  border-bottom-left-radius: 4px;
+}
+
+.consult-chat-msg[data-sender='system'] {
+  align-self: center;
+  max-width: 100%;
+  background: transparent;
+  color: #7a8798;
+  font-size: 12px;
+  padding: 2px 0;
+  text-align: center;
+}
+
+.consult-chat-msg .meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.consult-chat-msg[data-state='sending'] { opacity: 0.55; }
+
+.consult-chat-msg[data-state='failed'] {
+  background: #fdeaea;
+  color: #8c2020;
+}
+
+.consult-chat-msg .retry-btn {
+  margin-top: 4px;
+  border: none;
+  background: none;
+  padding: 0;
+  color: #8c2020;
+  text-decoration: underline;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* ---------- 새 메시지 버튼 ---------- */
+.consult-chat-newmsg {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  background: #0b1d3a;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.consult-chat-newmsg[hidden] { display: none; }
+
+/* ---------- 입력창 ---------- */
+.consult-chat-composer {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  flex: none;
+}
+
+.consult-chat-composer textarea {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  resize: none;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  min-height: 38px;
+  max-height: 96px;
+}
+
+.consult-chat-composer button {
+  flex: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #b8922d;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.consult-chat-composer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- 개인정보 동의 ---------- */
+.consult-chat-privacy {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5d6b7f;
+}
+
+.consult-chat-privacy input {
+  width: auto;
+  margin: 3px 0 0;
+  flex: none;
+}
+
+.consult-chat-privacy label { margin: 0; font-weight: 400; }
+
+.consult-chat-privacy small { display: block; margin-top: 2px; opacity: 0.85; }
+
+/* ---------- 하단 액션 ---------- */
+.consult-chat-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 10px;
+  flex: none;
+}
+
+.consult-chat-actions button {
+  flex: 1;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #fff;
+  border-radius: 8px;
+  padding: 7px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.consult-chat-actions button[hidden] { display: none; }
+
+@media (max-width: 640px) {
+  .consult-chat-panel { max-height: 78vh; }
+  .consult-chat-thread { min-height: 160px; }
+}
+
+/* =============================================
+   style.css 없이 쓰는 페이지용 기본 스타일
+   (korea-travel 은 travel.css 만 읽는다)
+
+   style.css 를 쓰는 페이지에는 .chat-standalone 이 없으므로
+   이 블록 전체가 적용되지 않는다. 두 곳이 서로 간섭하지 않는다.
+   ============================================= */
+
+.chat-standalone .consult-chat {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 980;
+  font-family: inherit;
+}
+
+.chat-standalone .consult-chat-panel {
+  position: absolute;
+  right: 0;
+  bottom: 68px;
+  width: min(360px, calc(100vw - 32px));
+  background: #fff;
+  border: 1px solid #dce4e5;
+  border-radius: 10px;
+  box-shadow: 0 24px 60px rgba(21, 47, 57, 0.22);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.chat-standalone .consult-chat.open .consult-chat-panel {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.chat-standalone .consult-chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 16px;
+  background: linear-gradient(135deg, #993b50, #7f2d40);
+  color: #fff;
+  flex: none;
+}
+
+.chat-standalone .consult-chat-head span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.chat-standalone .consult-chat-head h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.35;
+  color: #fff;
+}
+
+.chat-standalone .consult-chat-close {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  flex: 0 0 auto;
+}
+
+.chat-standalone .consult-chat-intro {
+  padding: 16px 20px 0;
+  margin: 0;
+  color: #596d74;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.chat-standalone .consult-chat-form { padding: 16px 20px 20px; }
+
+.chat-standalone .consult-chat-form label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chat-standalone .consult-chat-form label span {
+  display: block;
+  margin-bottom: 5px;
+  color: #152f39;
+}
+
+.chat-standalone .consult-chat-form textarea { min-height: 82px; resize: vertical; }
+
+.chat-standalone .consult-chat-status {
+  min-height: 18px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #7f2d40;
+}
+
+.chat-standalone .consult-chat-status.is-error { color: #b42318; }
+
+.chat-standalone .consult-chat-submit,
+.chat-standalone .consult-chat-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 5px;
+  background: #993b50;
+  color: #fff;
+  font-weight: 700;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.chat-standalone .consult-chat-submit {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.chat-standalone .consult-chat-toggle {
+  min-width: 132px;
+  min-height: 50px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  box-shadow: 0 8px 28px rgba(153, 59, 80, 0.3);
+}
+
+.chat-standalone .consult-chat-submit:hover,
+.chat-standalone .consult-chat-toggle:hover {
+  background: #7f2d40;
+  transform: translateY(-2px);
+}
+
+.chat-standalone .consult-chat-msg[data-sender='customer'] { background: #993b50; }
+.chat-standalone .consult-chat-newmsg { background: #993b50; }
+.chat-standalone .consult-chat-composer button { background: #993b50; }
+
+/* travel.css 는 모바일에서 하단 고정 바를 띄운다. 위젯이 그 위로 올라가게 한다. */
+@media (max-width: 640px) {
+  .chat-standalone .consult-chat { right: 16px; bottom: 84px; }
+}
