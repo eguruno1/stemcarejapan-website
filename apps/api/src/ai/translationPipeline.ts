@@ -1,6 +1,7 @@
 import type { DetectedLanguage, Language } from '@stemcare/shared';
 import type { Server } from 'socket.io';
 import { prisma } from '../db';
+import { logError } from '../common/logger';
 import { broadcastMessageUpdate } from '../realtime/emitters';
 import { detectLanguage, resolveLanguage } from './languageDetector';
 import { translate } from './translator';
@@ -73,7 +74,7 @@ export async function translateMessageInBackground(
     if (io) await broadcastMessageUpdate(io, message.chatRoomId, updated);
   } catch (err) {
     // 백그라운드 작업의 오류가 서버를 죽이면 안 된다.
-    console.error('[translationPipeline] 예상치 못한 오류', err);
+    logError(err, 'translationPipeline_unhandled');
   }
 }
 

@@ -3,6 +3,7 @@ import cors from 'cors';
 import express, { type Express } from 'express';
 import { config } from './config';
 import { applySecurity, loginLimiter, messageLimiter, publicChatLimiter } from './common/security';
+import { httpLogger } from './common/logger';
 import { errorHandler, notFound } from './common/errors';
 import { authRoutes } from './auth/authRoutes';
 import { translateRoutes } from './ai/translateRoutes';
@@ -13,6 +14,7 @@ export function createApp(): Express {
   const app = express();
 
   applySecurity(app);
+  app.use(httpLogger);
 
   app.use(
     cors({

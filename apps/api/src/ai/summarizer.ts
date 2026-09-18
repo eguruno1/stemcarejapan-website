@@ -2,6 +2,7 @@ import type { ChatSummary } from '@prisma/client';
 import { z } from 'zod';
 import { config } from '../config';
 import { prisma } from '../db';
+import { logWarn } from '../common/logger';
 import { callModel } from './aiClient';
 import { SUMMARY_SYSTEM_PROMPT } from './promptTemplates';
 
@@ -54,7 +55,7 @@ export async function generateSummary(roomId: string): Promise<ChatSummary | nul
 
     const parsed = SummarySchema.safeParse(extractJson(raw));
     if (!parsed.success) {
-      console.warn('[summarizer] 응답 형식이 올바르지 않습니다.');
+      logWarn('summarizer_invalid_response');
       return null;
     }
 
@@ -68,7 +69,7 @@ export async function generateSummary(roomId: string): Promise<ChatSummary | nul
       }
     });
   } catch (err) {
-    console.warn('[summarizer] 실패:', err instanceof Error ? err.message : err);
+    logWarn('summarizer_failed', { reason: err instanceof Error ? err.message : String(err) });
     return null;
   }
 }

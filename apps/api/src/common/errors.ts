@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { logError } from './logger';
 
 export class AppError extends Error {
   constructor(
@@ -51,7 +52,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   }
 
   // 우리가 예상하지 못한 오류. 내부 사정을 고객에게 노출하지 않는다.
-  console.error('[unhandled error]', err);
+  logError(err, 'unhandled_error');
   res.status(500).json({
     error: { code: 'INTERNAL_ERROR', message: '서버 내부 오류가 발생했습니다.' }
   });

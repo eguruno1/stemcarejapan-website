@@ -3,6 +3,7 @@ import type { Server } from 'socket.io';
 import { z } from 'zod';
 import { config } from '../config';
 import { prisma } from '../db';
+import { logError } from '../common/logger';
 import { createMessageRow } from '../messages/messageService';
 import { broadcastMessage, broadcastStatus } from '../realtime/emitters';
 import { callModel } from './aiClient';
@@ -171,6 +172,6 @@ export async function runBotTurn(io: Server | null, roomId: string): Promise<voi
     // 운영자가 상황을 빨리 파악하도록 요약을 만들어 둔다.
     await generateSummary(roomId);
   } catch (err) {
-    console.error('[consultationBot] 예상치 못한 오류', err);
+    logError(err, 'consultationBot_unhandled');
   }
 }

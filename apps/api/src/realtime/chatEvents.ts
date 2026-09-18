@@ -1,6 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
 import { AppError } from '../common/errors';
+import { logError } from '../common/logger';
 import { identityOf, isSocketAuthorized } from './authSocket';
 import { prisma } from '../db';
 import { runBotTurn } from '../ai/consultationBot';
@@ -84,7 +85,7 @@ export function registerChatEvents(io: Server, socket: Socket): void {
           emitError(socket, err.code, err.message, extra);
           return;
         }
-        console.error('[socket] unhandled', err);
+        logError(err, 'socket_unhandled');
         emitError(socket, 'INTERNAL_ERROR', '처리 중 문제가 발생했습니다.', extra);
       }
       });

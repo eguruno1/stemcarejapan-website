@@ -1,6 +1,7 @@
 import type { Language } from '@stemcare/shared';
 import { callModel } from './aiClient';
 import { config } from '../config';
+import { logWarn } from '../common/logger';
 import { translationSystemPrompt } from './promptTemplates';
 
 const TRANSLATION_TIMEOUT_MS = 8000;
@@ -60,7 +61,7 @@ export async function translate(input: {
 
     return { status: 'done', text: cleaned, model: config.translationModel };
   } catch (err) {
-    console.warn('[translate] 실패:', err instanceof Error ? err.message : err);
+    logWarn('translate_failed', { reason: err instanceof Error ? err.message : String(err) });
     return { status: 'failed', reason: 'AI_UNAVAILABLE' };
   }
 }
