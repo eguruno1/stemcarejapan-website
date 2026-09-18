@@ -1,4 +1,8 @@
 docs/
-
-# Generated public build
-/dist/
+node_modules/
+.env
+.env.local
+dist/
+.next/
+*.log
+.DS_Store

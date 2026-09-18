@@ -10,3 +10,25 @@ services:
       - ./images:/usr/share/nginx/html/images
       - ./stemcell:/usr/share/nginx/html/stemcell
       - ./korea-travel:/usr/share/nginx/html/korea-travel
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: stemcare
+      POSTGRES_PASSWORD: stemcare
+      POSTGRES_DB: stemcare_chat
+    ports:
+      # 호스트 5434 → 컨테이너 5432.
+      # 5432/5433/5435 는 이 머신의 다른 프로젝트가 쓰고 있다.
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stemcare -d stemcare_chat"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
