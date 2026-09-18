@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
@@ -41,6 +42,12 @@ export default function ChatsLayout({ children }: { children: React.ReactNode })
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           {operator.name} · {operator.role === 'admin' ? '관리자' : '운영자'}
         </span>
+        <Link
+          href="/settings"
+          style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}
+        >
+          설정
+        </Link>
         <Button variant="ghost" onClick={() => void signOut()}>
           로그아웃
         </Button>
