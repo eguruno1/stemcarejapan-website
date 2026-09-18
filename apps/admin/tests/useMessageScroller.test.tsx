@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useMessageScroller } from '@/hooks/useMessageScroller';
 
 /** jsdom 은 실제 레이아웃이 없으므로 스크롤 관련 값을 직접 흉내 낸다. */
@@ -35,6 +35,7 @@ function Harness({ itemCount, roomId }: { itemCount: number; roomId: string }) {
     if (scrollRef.current) {
       // 800px 짜리 내용, 400px 창, 맨 아래에서 300px 위 → "예전 메시지를 읽는 중"
       stubScrollMetrics(scrollRef.current, { scrollTop: 100, scrollHeight: 800, clientHeight: 400 });
+      fireEvent.scroll(scrollRef.current);
     }
   }, [scrollRef]);
 
@@ -127,6 +128,8 @@ describe('useMessageScroller', () => {
 
     act(() => {
       view.rerender(<Harness itemCount={5} roomId="room-2" />);
+    });
+    act(() => {
       view.rerender(<Harness itemCount={10} roomId="room-1" />);
     });
 
@@ -142,4 +145,46 @@ describe('useMessageScroller', () => {
 
     expect(screen.getByTestId('has-new')).toHaveTextContent('false');
   });
+});
+
+it('새 메시지로 높이가 늘어나도 과거를 읽는 scrollTop은 유지한다', () => {
+  const view = render(<Harness itemCount={5} roomId="room-a" />);
+  const thread = screen.getByTestId('thread');
+  fireEvent.scroll(thread);
+  Object.defineProperty(thread, 'scrollHeight', { value: 1100, configurable: true });
+  view.rerender(<Harness itemCount={6} roomId="room-a" />);
+  expect(thread.scrollTop).toBe(100);
+  expect(screen.getByTestId('has-new')).toHaveTextContent('true');
+});
+it('맨 아래에서 긴 메시지가 도착하면 추가 높이가 100px 이상이어도 따라간다', () => {
+  const view = render(<Harness itemCount={5} roomId="room-b" />);
+  const thread = screen.getByTestId('thread');
+  stubScrollMetrics(thread, { scrollTop: 400, scrollHeight: 800, clientHeight: 400 });
+  fireEvent.scroll(thread);
+  Object.defineProperty(thread, 'scrollHeight', { value: 1400, configurable: true });
+  view.rerender(<Harness itemCount={6} roomId="room-b" />);
+  expect(thread.scrollTop).toBeGreaterThanOrEqual(1000);
+  expect(screen.getByTestId('has-new')).toHaveTextContent('false');
+});
+
+it('메시지 개수가 같아도 높이 변경을 관찰해 읽던 위치를 유지한다', () => {
+  let resize!: () => void;
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: () => void) { resize = callback; }
+    observe() {} disconnect() {}
+  });
+  try {
+    const view = render(<Harness itemCount={5} roomId="resize-room" />);
+    const thread = screen.getByTestId('thread');
+    fireEvent.scroll(thread);
+    Object.defineProperty(thread, 'scrollHeight', { value: 1200, configurable: true });
+    act(() => resize());
+    expect(thread.scrollTop).toBe(100);
+    stubScrollMetrics(thread, { scrollTop: 800, scrollHeight: 1200, clientHeight: 400 });
+    fireEvent.scroll(thread);
+    Object.defineProperty(thread, 'scrollHeight', { value: 1500, configurable: true });
+    act(() => resize());
+    expect(thread.scrollTop).toBeGreaterThanOrEqual(1100);
+    view.unmount();
+  } finally { vi.unstubAllGlobals(); }
 });

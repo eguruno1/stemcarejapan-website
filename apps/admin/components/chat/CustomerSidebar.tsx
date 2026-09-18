@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import type { ChatRoomDetail, ChatRoomStatus, CustomerHistoryItem } from '@stemcare/shared';
+import type { ChatRoomDetail, ChatRoomStatus, CustomerHistoryItem, OperatorNoteDTO } from '@stemcare/shared';
 import { assignRoom, changeStatus, createNote, fetchCustomerHistory } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -29,14 +29,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function CustomerSidebar({
   room,
-  onChanged
+  onChanged,
+  onNoteCreated
 }: {
   room: ChatRoomDetail;
   onChanged: (next: ChatRoomDetail) => void;
+  onNoteCreated: (note: OperatorNoteDTO) => void;
 }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [history, setHistory] = useState<CustomerHistoryItem[] | null>(null);
 
   // 상담방이 바뀔 때마다 이력을 다시 불러온다.
@@ -45,13 +48,14 @@ export function CustomerSidebar({
   useEffect(() => {
     let cancelled = false;
     setHistory(null);
+    setHistoryError(null);
 
     fetchCustomerHistory(room.id)
       .then((items) => {
         if (!cancelled) setHistory(items);
       })
       .catch(() => {
-        if (!cancelled) setHistory([]);
+        if (!cancelled) setHistoryError('이전 상담을 불러오지 못했습니다.');
       });
 
     return () => {
@@ -134,7 +138,8 @@ export function CustomerSidebar({
       </Section>
 
       <Section title={`이전 상담${history && history.length > 0 ? ` (${history.length})` : ''}`}>
-        {history === null && (
+        {historyError && <p role="alert">{historyError}</p>}
+        {history === null && !historyError && (
           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>불러오는 중…</p>
         )}
 
@@ -201,6 +206,7 @@ export function CustomerSidebar({
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
+          maxLength={2000}
           aria-label="운영자 메모"
           placeholder="고객에게 보이지 않는 내부 메모"
           style={{ resize: 'vertical', marginBottom: 6 }}
@@ -211,8 +217,8 @@ export function CustomerSidebar({
           onClick={() =>
             run(async () => {
               const created = await createNote(room.id, note.trim());
-              onChanged({ ...room, notes: [created, ...room.notes] });
-              setNote('');
+              onNoteCreated(created);
+              setNote(current => current.trim() === note.trim() ? '' : current);
             })
           }
         >

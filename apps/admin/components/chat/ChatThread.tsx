@@ -14,11 +14,13 @@ export function ChatThread({ messages, roomId }: { messages: MessageDTO[]; roomI
   return (
     <div style={{ position: 'relative', flex: '1 1 auto', minHeight: 0 }}>
       <div
+        data-testid="chat-thread"
         ref={scrollRef}
         onScroll={onScroll}
         style={{
           height: '100%',
           overflowY: 'auto',
+          overflowAnchor: 'none',
           overscrollBehavior: 'contain',
           padding: '14px 18px',
           display: 'flex',

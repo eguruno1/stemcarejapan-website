@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { operator, status, signOut } = useAuth();
+  const { operator, status, signOut, error } = useAuth();
 
   useEffect(() => {
     if (status === 'anonymous') router.replace('/login');
@@ -46,6 +46,7 @@ export default function SettingsPage() {
         처리합니다.
       </p>
 
+      {error && <p role="alert">{error}</p>}
       <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
         <Button variant="secondary" onClick={() => router.push('/chats')}>
           상담 목록

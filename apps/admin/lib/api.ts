@@ -21,10 +21,18 @@ export class AdminApiError extends Error {
   }
 }
 
+let authVersion = 0;
+const unauthorizedListeners = new Set<() => void>();
+export function subscribeUnauthorized(listener: () => void) {
+  unauthorizedListeners.add(listener);
+  return () => { unauthorizedListeners.delete(listener); };
+}
+
 async function request<T>(
   path: string,
   init: { method?: string; body?: unknown } = {}
 ): Promise<T> {
+  const version = authVersion;
   let response: Response;
 
   try {
@@ -44,6 +52,10 @@ async function request<T>(
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
+    if (response.status === 401 && path !== '/api/admin/auth/login' && version === authVersion) {
+      authVersion += 1;
+      unauthorizedListeners.forEach(listener => listener());
+    }
     throw new AdminApiError(
       response.status,
       payload?.error?.code ?? 'UNKNOWN_ERROR',
@@ -57,6 +69,7 @@ async function request<T>(
 /* ---------- 인증 ---------- */
 
 export async function login(email: string, password: string): Promise<OperatorDTO> {
+  authVersion += 1;
   const res = await request<{ operator: OperatorDTO }>('/api/admin/auth/login', {
     method: 'POST',
     body: { email, password }
@@ -65,6 +78,7 @@ export async function login(email: string, password: string): Promise<OperatorDT
 }
 
 export async function logout(): Promise<void> {
+  authVersion += 1;
   await request<{ ok: true }>('/api/admin/auth/logout', { method: 'POST' });
 }
 

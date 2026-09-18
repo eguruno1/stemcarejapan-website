@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { OperatorDTO } from '@stemcare/shared';
 import * as api from '@/lib/api';
 
@@ -8,6 +8,7 @@ type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 
 interface AuthValue {
   operator: OperatorDTO | null;
+  error: string | null;
   status: AuthStatus;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -21,19 +22,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [operator, setOperator] = useState<OperatorDTO | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
 
+  const [error, setError] = useState<string | null>(null);
+  const revision = useRef(0);
+
+  useEffect(() => api.subscribeUnauthorized(() => {
+    revision.current += 1;
+    setOperator(null); setStatus('anonymous');
+  }), []);
+
   // 새로고침해도 쿠키가 살아 있으면 로그인 상태를 복원한다.
   useEffect(() => {
     let cancelled = false;
+    const version = revision.current;
 
     api
       .fetchMe()
       .then((me) => {
-        if (cancelled) return;
+        if (cancelled || version !== revision.current) return;
         setOperator(me);
         setStatus('authenticated');
       })
       .catch(() => {
-        if (cancelled) return;
+        if (cancelled || version !== revision.current) return;
         setOperator(null);
         setStatus('anonymous');
       });
@@ -44,25 +54,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    const version = ++revision.current;
+    setError(null);
     const me = await api.login(email, password);
+    if (version !== revision.current) return;
     setOperator(me);
     setStatus('authenticated');
   }, []);
 
   const signOut = useCallback(async () => {
-    await api.logout().catch(() => undefined);
-    setOperator(null);
-    setStatus('anonymous');
+    revision.current += 1;
+    try {
+      await api.logout();
+      setOperator(null); setStatus('anonymous'); setError(null);
+    } catch {
+      setError('로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해주세요.');
+    }
   }, []);
 
   const markSignedOut = useCallback(() => {
+    revision.current += 1;
     setOperator(null);
     setStatus('anonymous');
   }, []);
 
   const value = useMemo(
-    () => ({ operator, status, signIn, signOut, markSignedOut }),
-    [operator, status, signIn, signOut, markSignedOut]
+    () => ({ operator, status, error, signIn, signOut, markSignedOut }),
+    [operator, status, error, signIn, signOut, markSignedOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

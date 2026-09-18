@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 
 export default function ChatsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { operator, status, signOut } = useAuth();
+  const { operator, status, signOut, error } = useAuth();
 
   useEffect(() => {
     if (status === 'anonymous') router.replace('/login');
@@ -48,6 +48,7 @@ export default function ChatsLayout({ children }: { children: React.ReactNode })
         >
           설정
         </Link>
+        {error && <span role="alert">{error}</span>}
         <Button variant="ghost" onClick={() => void signOut()}>
           로그아웃
         </Button>

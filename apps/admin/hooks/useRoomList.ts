@@ -1,11 +1,8 @@
 'use client';
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChatRoomListItem, ChatRoomStatus } from '@stemcare/shared';
 import { fetchRooms } from '@/lib/api';
-
 const POLL_INTERVAL_MS = 5000;
-
 export type StatusFilter = ChatRoomStatus | 'all';
 export type SortOption = 'recent' | 'oldest_waiting';
 
@@ -15,42 +12,31 @@ export function useRoomList() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [sort, setSort] = useState<SortOption>('recent');
-
-  // 최신 필터 값을 setInterval 콜백이 읽을 수 있게 ref 에 담는다.
-  // (state 를 그대로 쓰면 interval 이 만들어질 때의 옛날 값을 계속 본다)
-  const filterRef = useRef(filter);
-  const sortRef = useRef(sort);
-  filterRef.current = filter;
-  sortRef.current = sort;
-
+  const requestRef = useRef<object | null>(null);
+  const generation = useRef(0);
   const load = useCallback(async () => {
+    if (requestRef.current) return;
+    const request = {}; const version = generation.current;
+    requestRef.current = request;
     try {
-      const next = await fetchRooms({
-        status: filterRef.current === 'all' ? undefined : filterRef.current,
-        sort: sortRef.current
-      });
-      setRooms(next);
-      setError(null);
+      const next = await fetchRooms({ status: filter === 'all' ? undefined : filter, sort });
+      if (version !== generation.current) return;
+      setRooms(next); setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '상담 목록을 불러오지 못했습니다.');
+      if (version === generation.current) setError(err instanceof Error ? err.message : '상담 목록을 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      if (requestRef.current === request) requestRef.current = null;
+      if (version === generation.current) setLoading(false);
     }
-  }, []);
-
-  // 필터/정렬이 바뀌면 즉시 다시 불러온다.
+  }, [filter, sort]);
   useEffect(() => {
-    setLoading(true);
+    generation.current += 1; requestRef.current = null;
+    setRooms([]); setLoading(true); setError(null);
     void load();
-  }, [filter, sort, load]);
-
-  // 주기적 갱신. Phase 4 에서 Socket 이벤트로 대체한다.
-  useEffect(() => {
-    const id = window.setInterval(() => {
+    const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void load();
     }, POLL_INTERVAL_MS);
-    return () => window.clearInterval(id);
+    return () => { generation.current += 1; requestRef.current = null; window.clearInterval(timer); };
   }, [load]);
-
   return { rooms, loading, error, filter, setFilter, sort, setSort, refresh: load };
 }

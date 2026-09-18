@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Language, MessageDTO } from '@stemcare/shared';
 import { sendOperatorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,8 @@ export function ChatComposer({
   disabled: boolean;
   onSent: (message: MessageDTO) => void;
 }) {
+  const retry = useRef<{ text: string; language: Language; id: string } | null>(null);
+  const sendingRef = useRef(false);
   const [text, setText] = useState('');
   // 운영자가 "지금 무슨 언어로 쓰고 있는가" 다. 고객의 선호 언어가 아니다.
   // 고객 언어로 바꿔 보내는 일은 Phase 5 의 번역이 담당한다.
@@ -23,7 +25,11 @@ export function ChatComposer({
 
   async function handleSend() {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed || trimmed.length > 2000 || disabled || sendingRef.current) return;
+    sendingRef.current = true;
+    if (retry.current?.text !== trimmed || retry.current?.language !== language) {
+      retry.current = { text: trimmed, language, id: crypto.randomUUID() };
+    }
 
     setSending(true);
     setError(null);
@@ -31,13 +37,16 @@ export function ChatComposer({
     try {
       const message = await sendOperatorMessage(roomId, {
         originalText: trimmed,
-        originalLanguage: language
+        originalLanguage: language,
+        clientMessageId: retry.current.id
       });
       onSent(message);
-      setText('');
+      retry.current = null;
+      setText(current => current.trim() === trimmed ? '' : current);
     } catch (err) {
       setError(err instanceof Error ? err.message : '전송에 실패했습니다.');
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   }
@@ -74,12 +83,13 @@ export function ChatComposer({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             // Enter 전송, Shift+Enter 줄바꿈
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
               e.preventDefault();
               void handleSend();
             }
           }}
           rows={2}
+          maxLength={2000}
           disabled={disabled}
           aria-label="답변 입력"
           placeholder={

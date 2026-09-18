@@ -1,75 +1,92 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ChatRoomDetail, MessageDTO } from '@stemcare/shared';
+import type { ChatRoomDetail, MessageDTO, OperatorNoteDTO } from '@stemcare/shared';
 import { fetchRoom } from '@/lib/api';
-
 const POLL_INTERVAL_MS = 3000;
 
-/**
- * 상담방 하나의 최신 상태를 유지한다.
- *
- * Phase 4 에서 이 파일 내부만 Socket.IO 구독으로 바꾼다.
- * 반환하는 모양(room/loading/error/refresh/applyRoom/appendMessage)은 그대로 두어야
- * 화면 컴포넌트를 고치지 않아도 된다.
- */
+/** 방 이동·쓰기 이후의 늦은 조회가 현재 상태를 되돌리지 않도록 요청을 구분한다. */
 export function useRoomStream(roomId: string) {
   const [room, setRoom] = useState<ChatRoomDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const inFlightRef = useRef(false);
-  // 상담방을 빠르게 옮기면 먼저 보낸 요청이 늦게 도착해
-  // 이전 고객의 개인정보가 현재 화면에 박힐 수 있다. 세대 번호로 막는다.
-  const generationRef = useRef(0);
+  const currentId = useRef(roomId);
+  currentId.current = roomId;
+  const revision = useRef(0);
+  const active = useRef(true);
+  const inFlight = useRef<object | null>(null);
 
   const refresh = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    const generation = generationRef.current;
-
+    if (!active.current || currentId.current !== roomId || inFlight.current) return;
+    const request = {};
+    const version = revision.current;
+    inFlight.current = request;
+    const isCurrent = () => active.current && currentId.current === roomId && version === revision.current;
     try {
       const next = await fetchRoom(roomId);
-      if (generation !== generationRef.current) return;
+      if (!isCurrent()) return;
       setRoom(next);
       setError(null);
     } catch (err) {
-      if (generation !== generationRef.current) return;
-      setError(err instanceof Error ? err.message : '상담을 불러오지 못했습니다.');
+      if (isCurrent()) setError(err instanceof Error ? err.message : '상담을 불러오지 못했습니다.');
     } finally {
-      inFlightRef.current = false;
-      if (generation === generationRef.current) setLoading(false);
+      if (inFlight.current === request) inFlight.current = null;
+      if (isCurrent()) setLoading(false);
     }
   }, [roomId]);
 
   useEffect(() => {
-    generationRef.current += 1;
-    inFlightRef.current = false;
-    setLoading(true);
-    setRoom(null);
-    setError(null);
+    active.current = true;
+    revision.current += 1;
+    inFlight.current = null;
+    setRoom(null); setLoading(true); setError(null);
     void refresh();
-  }, [roomId, refresh]);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
+    const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refresh();
     }, POLL_INTERVAL_MS);
-    return () => window.clearInterval(id);
+    return () => {
+      active.current = false;
+      revision.current += 1;
+      inFlight.current = null;
+      window.clearInterval(timer);
+    };
   }, [refresh]);
 
-  /** 배정/상태변경 API 응답을 그대로 반영한다. (다시 조회할 필요 없음) */
+  const invalidateRead = useCallback(() => {
+    revision.current += 1;
+    inFlight.current = null;
+    setError(null);
+    setLoading(false);
+  }, []);
+
   const applyRoom = useCallback((next: ChatRoomDetail) => {
-    setRoom(next);
-  }, []);
-
-  /** 내가 방금 보낸 메시지를 폴링을 기다리지 않고 즉시 붙인다. */
-  const appendMessage = useCallback((message: MessageDTO) => {
-    setRoom((prev) => {
-      if (!prev) return prev;
-      if (prev.messages.some((m) => m.id === message.id)) return prev;
-      return { ...prev, messages: [...prev.messages, message] };
+    if (!active.current || currentId.current !== roomId || next.id !== roomId) return;
+    invalidateRead();
+    setRoom(prev => {
+      if (!prev || prev.id !== next.id) return next;
+      // 상태 변경 응답이 생성된 뒤 도착한 메시지·메모도 보존한다.
+      const messages = new Map(prev.messages.map(m => [m.id, m]));
+      next.messages.forEach(m => messages.set(m.id, m));
+      const notes = new Map(prev.notes.map(n => [n.id, n]));
+      next.notes.forEach(n => notes.set(n.id, n));
+      return { ...next, messages: [...messages.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+        notes: [...notes.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)) };
     });
-  }, []);
+  }, [roomId, invalidateRead]);
 
-  return { room, loading, error, refresh, applyRoom, appendMessage };
+  const appendMessage = useCallback((message: MessageDTO) => {
+    if (!active.current || currentId.current !== roomId || message.chatRoomId !== roomId) return;
+    invalidateRead();
+    setRoom(prev => !prev || prev.id !== roomId || prev.messages.some(m => m.id === message.id)
+      ? prev : { ...prev, messages: [...prev.messages, message] });
+  }, [roomId, invalidateRead]);
+
+  const appendNote = useCallback((note: OperatorNoteDTO) => {
+    if (!active.current || currentId.current !== roomId) return;
+    invalidateRead();
+    setRoom(prev => !prev || prev.id !== roomId || prev.notes.some(n => n.id === note.id)
+      ? prev : { ...prev, notes: [note, ...prev.notes] });
+  }, [roomId, invalidateRead]);
+
+  return { room: room?.id === roomId ? room : null, loading, error, refresh, applyRoom, appendMessage, appendNote };
 }

@@ -10,7 +10,7 @@ import { useRoomStream } from '@/hooks/useRoomStream';
 export default function ChatRoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   // Next.js 15 에서 params 는 Promise 다. use() 로 풀어 쓴다.
   const { roomId } = use(params);
-  const { room, loading, error, applyRoom, appendMessage } = useRoomStream(roomId);
+  const { room, loading, error, applyRoom, appendMessage, appendNote } = useRoomStream(roomId);
 
   if (loading && !room) {
     return (
@@ -64,13 +64,14 @@ export default function ChatRoomPage({ params }: { params: Promise<{ roomId: str
         <ChatThread messages={room.messages} roomId={room.id} />
 
         <ChatComposer
+          key={room.id}
           roomId={room.id}
           disabled={room.status === 'closed'}
           onSent={appendMessage}
         />
       </section>
 
-      <CustomerSidebar room={room} onChanged={applyRoom} />
+      <CustomerSidebar key={room.id} room={room} onChanged={applyRoom} onNoteCreated={appendNote} />
     </div>
   );
 }
