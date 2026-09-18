@@ -18,8 +18,6 @@ export function useRoomStream(roomId: string) {
   const revision = useRef(0);
   const active = useRef(true);
   const inFlight = useRef<object | null>(null);
-  // 인터벌 콜백이 최신 realtime 값을 읽을 수 있게 ref 에도 담아 둔다.
-  const realtimeRef = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!active.current || currentId.current !== roomId || inFlight.current) return;
@@ -84,8 +82,12 @@ export function useRoomStream(roomId: string) {
   const appendMessage = useCallback((message: MessageDTO) => {
     if (!active.current || currentId.current !== roomId || message.chatRoomId !== roomId) return;
     invalidateRead();
-    setRoom(prev => !prev || prev.id !== roomId || prev.messages.some(m => m.id === message.id)
-      ? prev : { ...prev, messages: [...prev.messages, message] });
+    setRoom(prev => {
+      if (!prev || prev.id !== roomId) return prev;
+      const messages = new Map(prev.messages.map(m => [m.id, m]));
+      messages.set(message.id, message);
+      return { ...prev, messages: [...messages.values()].sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '')) };
+    });
   }, [roomId, invalidateRead]);
 
   const appendNote = useCallback((note: OperatorNoteDTO) => {
@@ -98,38 +100,43 @@ export function useRoomStream(roomId: string) {
   /** chat:status 로 받은 상태·담당자만 갈아끼운다. 메시지/메모는 건드리지 않는다. */
   const applyStatus = useCallback((status: ChatRoomStatus, assignedOperatorId: string | null) => {
     if (!active.current || currentId.current !== roomId) return;
+    invalidateRead();
     setRoom(prev => (!prev || prev.id !== roomId ? prev : { ...prev, status, assignedOperatorId }));
-  }, [roomId]);
+  }, [roomId, invalidateRead]);
 
   // 소켓 구독. Phase 4 이후 이 useEffect 하나만 socket.io 를 안다 — 나머지 훅 로직은
   // HTTP 폴링이든 소켓이든 신경 쓰지 않는다.
   useEffect(() => {
     const socket = getSocket();
+    let typingTimer: number | undefined;
 
     function handleConnect() {
-      setRealtime(true);
-      realtimeRef.current = true;
-      socket.emit('chat:join', { roomId });
+      setRealtime(false);
+      if (document.visibilityState !== 'hidden') socket.emit('chat:join', { roomId });
+      void refresh();
     }
 
     function handleDisconnect() {
       setRealtime(false);
-      realtimeRef.current = false;
       setPeerTyping(false);
     }
 
     function handleMessage(payload: { message: MessageDTO }) {
       appendMessage(payload.message);
+      if (payload.message.chatRoomId === roomId) void refresh();
     }
 
     function handleStatus(payload: { roomId: string; status: ChatRoomStatus; assignedOperatorId: string | null }) {
       if (payload.roomId !== roomId) return;
       applyStatus(payload.status, payload.assignedOperatorId);
+      void refresh();
     }
 
     function handleTyping(payload: { roomId: string; from: string; isTyping: boolean }) {
       if (payload.roomId !== roomId || payload.from !== 'customer') return;
+      window.clearTimeout(typingTimer);
       setPeerTyping(payload.isTyping);
+      if (payload.isTyping) typingTimer = window.setTimeout(() => setPeerTyping(false), 3000);
     }
 
     function handleError(payload: { code: string }) {
@@ -137,6 +144,17 @@ export function useRoomStream(roomId: string) {
       console.warn('[chat] socket error', payload.code);
     }
 
+    function handleJoined(payload: { roomId: string }) {
+      if (payload.roomId === roomId) { setRealtime(true); void refresh(); }
+    }
+    function handleVisibility() {
+      if (!socket.connected) return;
+      if (document.visibilityState === 'hidden') {
+        socket.emit('chat:leave', { roomId }); setRealtime(false);
+      } else handleConnect();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    socket.on('chat:joined', handleJoined);
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('chat:message', handleMessage);
@@ -148,6 +166,10 @@ export function useRoomStream(roomId: string) {
     if (socket.connected) handleConnect();
 
     return () => {
+      window.clearTimeout(typingTimer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (socket.connected) socket.emit('chat:leave', { roomId });
+      socket.off('chat:joined', handleJoined);
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('chat:message', handleMessage);
@@ -155,7 +177,7 @@ export function useRoomStream(roomId: string) {
       socket.off('chat:typing', handleTyping);
       socket.off('chat:error', handleError);
     };
-  }, [roomId, appendMessage, applyStatus]);
+  }, [roomId, appendMessage, applyStatus, refresh]);
 
   return {
     room: room?.id === roomId ? room : null,

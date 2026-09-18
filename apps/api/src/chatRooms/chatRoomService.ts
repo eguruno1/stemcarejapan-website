@@ -296,3 +296,13 @@ export async function listCustomerHistory(
     messageCount: room._count.messages
   }));
 }
+
+/** 전달한 메시지까지만 읽음으로 확정한다. 지연된 방송이 미래 메시지를 읽지 않는다. */
+export async function markDeliveredRead(roomId: string, deliveredAt: Date): Promise<void> {
+  await prisma.$transaction(async tx => {
+    const room = await lockRoom(tx, roomId);
+    if (!room.operatorLastReadAt || room.operatorLastReadAt < deliveredAt) {
+      await tx.chatRoom.update({ where: { id: roomId }, data: { operatorLastReadAt: deliveredAt } });
+    }
+  });
+}

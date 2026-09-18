@@ -154,3 +154,14 @@ describe('HTTP → 소켓 전파', () => {
     expect((await noticeEvent).message.senderType).toBe('system');
   });
 });
+
+it('HTTP 폴백에서도 인계 요청은 waiting 전환과 시스템 메시지를 한 번만 생성한다', async () => {
+  const { prisma } = await import('../src/db');
+  const { room, visitorToken } = await createCustomerWithRoom();
+  const url = `/api/public/chat/${room.id}/handoff`;
+  await request(baseUrl).post(url).expect(401);
+  const first = await request(baseUrl).post(url).set('X-Visitor-Token', visitorToken).expect(200);
+  expect(first.body.status).toBe('waiting');
+  await request(baseUrl).post(url).set('X-Visitor-Token', visitorToken).expect(200);
+  expect(await prisma.message.count({ where: { chatRoomId: room.id, senderType: 'system' } })).toBe(1);
+});

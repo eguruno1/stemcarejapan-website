@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const markSignedOut = useCallback(() => {
     revision.current += 1;
+    closeSocket();
     setOperator(null);
     setStatus('anonymous');
   }, []);

@@ -9,7 +9,8 @@ import { OPERATORS_CHANNEL } from './rooms';
 let io: Server | null = null;
 
 export function createSocketServer(httpServer: HttpServer): Server {
-  io = new Server(httpServer, {
+  const server = new Server(httpServer, {
+    allowRequest: (req, callback) => callback(null, !req.headers.origin || config.corsOrigins.includes(req.headers.origin)),
     cors: {
       origin: config.corsOrigins,
       credentials: true
@@ -19,11 +20,12 @@ export function createSocketServer(httpServer: HttpServer): Server {
     pingTimeout: 25_000
   });
 
-  io.use((socket, next) => {
-    void authenticateSocket(socket, next);
+  io = server;
+  server.use((socket, next) => {
+    void authenticateSocket(socket, next).catch(() => next(new Error('UNAUTHORIZED')));
   });
 
-  io.on('connection', (socket) => {
+  server.on('connection', (socket) => {
     const identity = identityOf(socket);
     if (!identity) {
       socket.disconnect(true);
@@ -35,19 +37,19 @@ export function createSocketServer(httpServer: HttpServer): Server {
       void socket.join(OPERATORS_CHANNEL);
 
       // 운영자가 들어왔다. 대기 중인 고객들에게 알린다.
-      broadcastPresenceToAllCustomerRooms(io!);
+      broadcastPresenceToAllCustomerRooms(server);
 
       socket.on('disconnect', () => {
         // disconnect 핸들러가 먼저 실행되면 아직 목록에 남아 있을 수 있으므로
         // 다음 이벤트 루프에서 센다.
-        setImmediate(() => broadcastPresenceToAllCustomerRooms(io!));
+        setImmediate(() => broadcastPresenceToAllCustomerRooms(server));
       });
     }
 
-    registerChatEvents(io!, socket);
+    registerChatEvents(server, socket);
   });
 
-  return io;
+  return server;
 }
 
 /**

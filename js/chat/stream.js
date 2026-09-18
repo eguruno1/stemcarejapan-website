@@ -1,15 +1,15 @@
-import { sendMessage as sendMessageHttp } from './api.js';
+import { sendMessage as sendMessageHttp, requestHandoff as handoffHttp } from './api.js';
 import { pollOnce, startPolling, stopPolling } from './poller.js';
 import {
   connectSocket,
   disconnectSocket,
   isSocketConnected,
-  requestHandoffViaSocket,
   sendTyping as sendTypingSocket,
   sendViaSocket
 } from './socket.js';
-import { getSession, resolvePendingMessage, setTransport } from './state.js';
+import { getSession, resolvePendingMessage, setRoomStatus, setTransport } from './state.js';
 
+let generation = 0;
 let mode = 'none'; // 'none' | 'socket' | 'polling'
 
 /**
@@ -17,22 +17,30 @@ let mode = 'none'; // 'none' | 'socket' | 'polling'
  * 소켓을 먼저 시도하고, 실패하면 조용히 폴링으로 대체한다.
  * 고객은 어느 쪽으로 동작하는지 알 필요가 없다.
  */
-export async function startStream({ onFatalError }) {
+export async function startStream({ onFatalError } = {}) {
   stopStream();
-
-  try {
-    await connectSocket();
-    mode = 'socket';
-    setTransport('socket');
-  } catch {
-    console.info('[chat] 실시간 연결 실패 → 주기 조회로 전환합니다.');
-    mode = 'polling';
-    setTransport('polling');
+  const version = generation;
+  const session = getSession();
+  const current = () => generation === version && getSession() === session;
+  const fallback = () => {
+    if (!current()) return;
+    if (mode === 'polling') { setTransport('polling'); return; }
+    mode = 'polling'; setTransport('polling');
     startPolling({ onError: onFatalError });
-  }
+  };
+  try {
+    await connectSocket({
+      onReady: () => {
+        if (!current()) return;
+        stopPolling(); mode = 'socket'; setTransport('socket');
+      },
+      onUnavailable: fallback
+    });
+  } catch { fallback(); }
 }
 
 export function stopStream() {
+  generation += 1;
   disconnectSocket();
   stopPolling();
   mode = 'none';
@@ -80,6 +88,9 @@ export function refreshNow() {
   if (mode === 'polling') void pollOnce();
 }
 
-export function requestHandoff() {
-  return requestHandoffViaSocket();
+export async function requestHandoff() {
+  const session = getSession();
+  if (!session) return;
+  const result = await handoffHttp(session.roomId, session.visitorToken);
+  if (getSession() === session) setRoomStatus(result.status);
 }

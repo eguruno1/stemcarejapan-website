@@ -6,9 +6,9 @@ import { validateBody } from '../common/validate';
 import { prisma } from '../db';
 import { createMessageRow, listMessages } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
-import { broadcastMessage, notifyOperators } from '../realtime/emitters';
+import { broadcastMessage, broadcastStatus, notifyOperators } from '../realtime/emitters';
 import { getIo } from '../realtime/socketServer';
-import { assertRoomOpen, authorizeVisitor, startChat } from './chatRoomService';
+import { assertRoomOpen, authorizeVisitor, requestHandoff, startChat } from './chatRoomService';
 
 const StartChatSchema = z.object({
   name: z.string().trim().min(1, '성함을 입력해주세요.').max(50),
@@ -92,3 +92,15 @@ publicChatRoutes.post(
     res.status(201).json({ message: toMessageDTO(row, 'customer') });
   })
 );
+
+// 소켓 차단 환경에서도 동일한 상태 전환을 수행한다.
+publicChatRoutes.post('/:roomId/handoff', asyncHandler(async (req, res) => {
+  const room = await authorizeVisitor(req.params.roomId, visitorTokenOf(req));
+  const result = await requestHandoff(room.id);
+  const io = getIo();
+  if (io) {
+    if (result.notice) await broadcastMessage(io, room.id, result.notice);
+    broadcastStatus(io, room.id, result.status, result.assignedOperatorId);
+  }
+  res.json({ status: result.status });
+}));

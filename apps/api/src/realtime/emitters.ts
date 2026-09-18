@@ -1,8 +1,8 @@
 import type { Message } from '@prisma/client';
 import type { ChatRoomStatus } from '@stemcare/shared';
 import type { Server } from 'socket.io';
-import { identityOf } from './authSocket';
-import { prisma } from '../db';
+import { identityOf, isSocketAuthorized } from './authSocket';
+import { markDeliveredRead } from '../chatRooms/chatRoomService';
 import { toMessageDTO } from '../messages/messageMapper';
 import { OPERATORS_CHANNEL, roomChannel } from './rooms';
 
@@ -25,6 +25,8 @@ export async function broadcastMessage(io: Server, roomId: string, row: Message)
 
     const identity = identityOf(socket);
     if (!identity) continue;
+    if (!(await isSocketAuthorized(socket))) { socket.disconnect(true); continue; }
+    if (!socket.rooms.has(channel)) continue;
 
     if (identity.kind === 'operator') operatorPresent = true;
 
@@ -33,10 +35,7 @@ export async function broadcastMessage(io: Server, roomId: string, row: Message)
   }
 
   if (operatorPresent && row.senderType === 'customer') {
-    await prisma.chatRoom.update({
-      where: { id: roomId },
-      data: { operatorLastReadAt: new Date() }
-    });
+    await markDeliveredRead(roomId, row.createdAt);
   }
 
   // 운영자 목록(사이드바)도 갱신이 필요하다.

@@ -70,3 +70,7 @@ export function sendMessage(roomId, visitorToken, { text, clientMessageId }) {
     body: { text, clientMessageId }
   });
 }
+
+export function requestHandoff(roomId, visitorToken) {
+  return request(`/api/public/chat/${encodeURIComponent(roomId)}/handoff`, { method: 'POST', visitorToken });
+}

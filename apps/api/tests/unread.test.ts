@@ -98,3 +98,32 @@ describe('unread 실시간 처리', () => {
     expect(list.body.rooms[0].unreadCount).toBe(1);
   });
 });
+
+it('지연된 읽음 처리는 전달한 메시지 이후의 메시지를 읽거나 시각을 되돌리지 않는다', async () => {
+  const { markDeliveredRead, listRooms } = await import('../src/chatRooms/chatRoomService');
+  const { createMessageRow } = await import('../src/messages/messageService');
+  const { prisma } = await import('../src/db');
+  const { room, customer } = await createCustomerWithRoom();
+  const first = await createMessageRow({ chatRoomId: room.id, senderType: 'customer', senderId: customer.id, text: '첫째' });
+  const second = await createMessageRow({ chatRoomId: room.id, senderType: 'customer', senderId: customer.id, text: '둘째' });
+  await markDeliveredRead(room.id, first.createdAt);
+  expect((await listRooms())[0].unreadCount).toBe(1);
+  await markDeliveredRead(room.id, second.createdAt);
+  await markDeliveredRead(room.id, first.createdAt);
+  expect((await prisma.chatRoom.findUniqueOrThrow({ where: { id: room.id } })).operatorLastReadAt).toEqual(second.createdAt);
+});
+
+it('다른 방으로 이동한 운영자는 이전 방 고객 메시지를 읽음 처리하지 않는다', async () => {
+  const { listRooms } = await import('../src/chatRooms/chatRoomService');
+  const { operator } = await createOperator();
+  const a = await createCustomerWithRoom();
+  const b = await createCustomerWithRoom();
+  const op = await connect({ operatorToken: signOperatorToken({ operatorId: operator.id, role: 'operator' }) });
+  op.emit('chat:join', { roomId: a.room.id }); await waitFor(op, 'chat:joined');
+  op.emit('chat:join', { roomId: b.room.id }); await waitFor(op, 'chat:joined');
+  const customer = await connect({ roomId: a.room.id, visitorToken: a.visitorToken });
+  const ack = waitFor(customer, 'chat:message:ack');
+  customer.emit('chat:message', { roomId: a.room.id, text: '부재중', clientMessageId: 'away' });
+  await ack;
+  expect((await listRooms()).find(r => r.id === a.room.id)?.unreadCount).toBe(1);
+});

@@ -16,7 +16,7 @@ export function getSocket(): Socket {
 
   socket = io(API_URL, {
     withCredentials: true,
-    transports: ['websocket', 'polling'],
+    transports: ['polling', 'websocket'],
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 8000

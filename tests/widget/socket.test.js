@@ -46,13 +46,15 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  socketModule.disconnectSocket();
+  vi.useRealTimers();
   delete window.io;
 });
 
 it('chat:error 에 clientMessageId 가 실려 오면 해당 pending 말풍선만 실패로 표시한다', async () => {
   const connectPromise = socketModule.connectSocket();
   fakeSocket.__fire('connect');
-  fakeSocket.__fire('chat:joined', { status: 'active', messages: [] });
+  fakeSocket.__fire('chat:joined', { roomId: 'room-1', status: 'active', messages: [] });
   await connectPromise;
 
   state.addPendingMessage({ clientMessageId: 'stuck-1', text: '테스트' });
@@ -66,7 +68,7 @@ it('chat:error 에 clientMessageId 가 실려 오면 해당 pending 말풍선만
 it('clientMessageId 가 없는 chat:error 는 어떤 pending 도 건드리지 않는다', async () => {
   const connectPromise = socketModule.connectSocket();
   fakeSocket.__fire('connect');
-  fakeSocket.__fire('chat:joined', { status: 'active', messages: [] });
+  fakeSocket.__fire('chat:joined', { roomId: 'room-1', status: 'active', messages: [] });
   await connectPromise;
 
   state.addPendingMessage({ clientMessageId: 'safe-1', text: '테스트' });
@@ -74,4 +76,51 @@ it('clientMessageId 가 없는 chat:error 는 어떤 pending 도 건드리지 �
   fakeSocket.__fire('chat:error', { code: 'VALIDATION_ERROR', message: '오류' });
 
   expect(state.getPendingMessage('safe-1').status).toBe('sending');
+});
+
+it('이전 세션의 늦은 이벤트는 새 고객 상태에 반영하지 않는다', async () => {
+  const connecting = socketModule.connectSocket();
+  fakeSocket.__fire('connect');
+  fakeSocket.__fire('chat:joined', { roomId: 'room-1', status: 'active', messages: [] });
+  await connecting;
+  state.clearSession();
+  state.saveSession({ roomId: 'room-2', visitorToken: 'token-2' });
+  fakeSocket.__fire('chat:message', { message: { id: 'private', chatRoomId: 'room-1' } });
+  fakeSocket.__fire('chat:status', { roomId: 'room-1', status: 'closed' });
+  expect(state.getState().messages).toEqual([]);
+  expect(state.getState().room).toBeNull();
+});
+
+it('재시도 가능한 초기 연결 오류에도 5초 제한이 유지된다', async () => {
+  vi.useFakeTimers();
+  const connecting = socketModule.connectSocket();
+  const rejected = expect(connecting).rejects.toThrow();
+  fakeSocket.__fire('connect_error', new Error('offline'));
+  await vi.advanceTimersByTimeAsync(5000);
+  await rejected;
+  expect(fakeSocket.disconnect).toHaveBeenCalled();
+});
+
+it('ack 유실 시 전송 중 말풍선이 재시도 가능한 실패 상태가 된다', async () => {
+  vi.useFakeTimers();
+  const connecting = socketModule.connectSocket();
+  fakeSocket.__fire('connect');
+  fakeSocket.__fire('chat:joined', { roomId: 'room-1', status: 'active', messages: [] });
+  await connecting;
+  state.addPendingMessage({ clientMessageId: 'lost', text: '전송' });
+  socketModule.sendViaSocket({ clientMessageId: 'lost', text: '전송' });
+  await vi.advanceTimersByTimeAsync(8000);
+  expect(state.getPendingMessage('lost').status).toBe('failed');
+});
+
+it('입력 종료 신호가 유실돼도 입력 중 표시는 만료된다', async () => {
+  vi.useFakeTimers();
+  const connecting = socketModule.connectSocket();
+  fakeSocket.__fire('connect');
+  fakeSocket.__fire('chat:joined', { roomId: 'room-1', status: 'active', messages: [] });
+  await connecting;
+  fakeSocket.__fire('chat:typing', { roomId: 'room-1', from: 'operator', isTyping: true });
+  expect(state.getState().peerTyping).toBe(true);
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(state.getState().peerTyping).toBe(false);
 });

@@ -18,6 +18,7 @@ import {
   loadSession,
   retryPendingMessage,
   saveSession,
+  setConnection,
   setPhase,
   subscribe
 } from './state.js';
@@ -262,16 +263,17 @@ function bindThreadActions(elements) {
   });
 
   // 담당자 연결 요청
-  elements.handoffButton.addEventListener('click', () => {
-    if (!getSession() || getState().room?.status === 'closed') return;
-
-    // 소켓이 있으면 전용 이벤트로 요청한다. 실패(폴링 모드 등)하면 일반 메시지로 대신한다.
-    if (requestHandoffStream()) return;
-
-    const clientMessageId = newClientMessageId();
-    const text = t('handoff.message');
-    addPendingMessage({ clientMessageId, text, createdAt: new Date().toISOString() });
-    void submitMessage(text, clientMessageId);
+  elements.handoffButton.addEventListener('click', async () => {
+    const session = getSession();
+    if (!session || getState().room?.status === 'closed') return;
+    elements.handoffButton.disabled = true;
+    try { await requestHandoffStream(); }
+    catch (error) {
+      if (getSession() !== session) return;
+      if ([401, 403, 404].includes(error.status)) onSessionLost();
+      else if (error.code === 'ROOM_CLOSED') refreshNow();
+      else setConnection('reconnecting');
+    } finally { elements.handoffButton.disabled = getState().room?.status === 'closed'; }
   });
 
   // 새 상담 시작

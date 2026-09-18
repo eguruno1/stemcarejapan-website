@@ -385,3 +385,53 @@ describe('chat:typing', () => {
     expect(payload.isTyping).toBe(true);
   });
 });
+
+describe('Phase 4 검토 회귀', () => {
+  it('불완전한 고객 자격은 운영자 쿠키로 승격하지 않는다', async () => {
+    const { operator } = await createOperator();
+    const { room } = await createCustomerWithRoom();
+    const cookie = `scj_admin_token=${signOperatorToken({ operatorId: operator.id, role: 'operator' })}`;
+    await expect(connect({ roomId: room.id }, { cookie })).rejects.toThrow('UNAUTHORIZED');
+  });
+
+  it('깨진 쿠키도 서버 예외 대신 인증 실패로 응답한다', async () => {
+    await expect(connect({}, { cookie: 'scj_admin_token=%E0%A4%A' })).rejects.toThrow('UNAUTHORIZED');
+  });
+
+  it('허용되지 않은 Origin의 websocket 연결을 거절한다', async () => {
+    const { room, visitorToken } = await createCustomerWithRoom();
+    await expect(connect({ roomId: room.id, visitorToken }, { origin: 'https://untrusted.example' })).rejects.toThrow();
+  });
+
+  it('접속 후 비활성화된 운영자는 메시지를 저장하지 못한다', async () => {
+    const { prisma } = await import('../src/db');
+    const { operator } = await createOperator();
+    const { room } = await createCustomerWithRoom();
+    const socket = await connect({ operatorToken: signOperatorToken({ operatorId: operator.id, role: 'operator' }) });
+    await prisma.operator.update({ where: { id: operator.id }, data: { isActive: false } });
+    const error = waitFor<{ code: string }>(socket, 'chat:error');
+    socket.emit('chat:message', { roomId: room.id, text: '거절', clientMessageId: 'inactive' });
+    expect((await error).code).toBe('UNAUTHORIZED');
+    expect(await prisma.message.count({ where: { chatRoomId: room.id } })).toBe(0);
+  });
+
+  it('A 입장 직후 나가기와 B 입장이 와도 마지막 방만 구독한다', async () => {
+    const { getIo } = await import('../src/realtime/socketServer');
+    const { operator } = await createOperator();
+    const a = await createCustomerWithRoom();
+    const b = await createCustomerWithRoom();
+    const socket = await connect({ operatorToken: signOperatorToken({ operatorId: operator.id, role: 'operator' }) });
+    const joinedB = new Promise<void>(resolve => socket.on('chat:joined', p => { if (p.roomId === b.room.id) resolve(); }));
+    socket.emit('chat:join', { roomId: a.room.id });
+    socket.emit('chat:leave', { roomId: a.room.id });
+    socket.emit('chat:join', { roomId: b.room.id });
+    await joinedB;
+    const rooms = getIo()!.sockets.sockets.get(socket.id!)!.rooms;
+    expect(rooms.has(`room:${a.room.id}`)).toBe(false);
+    expect(rooms.has(`room:${b.room.id}`)).toBe(true);
+    const left = waitFor(socket, 'chat:left');
+    socket.emit('chat:leave', { roomId: b.room.id });
+    await left;
+    expect(rooms.has(`room:${b.room.id}`)).toBe(false);
+  });
+});

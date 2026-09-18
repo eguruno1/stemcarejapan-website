@@ -28,7 +28,9 @@ function readCookie(cookieHeader: string | undefined, name: string): string | nu
 
   for (const part of cookieHeader.split(';')) {
     const [key, ...rest] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(rest.join('='));
+    if (key === name) {
+      try { return decodeURIComponent(rest.join('=')); } catch { return null; }
+    }
   }
   return null;
 }
@@ -36,8 +38,7 @@ function readCookie(cookieHeader: string | undefined, name: string): string | nu
 /**
  * 연결 시점에 단 한 번 신원을 확인한다.
  * next(new Error(...)) 를 호출하면 연결 자체가 거부되고
- * 클라이언트는 'connect_error' 를 받는다. 연결한 뒤에는 권한을 다시 묻지 않는다 —
- * chat:join/chat:message 는 이때 확정된 socket.data.identity 만 믿는다.
+ * 클라이언트는 'connect_error' 를 받는다. 연결 후에도 운영자 이벤트·방송 시 토큰 만료와 활성 여부를 재확인한다.
  */
 export async function authenticateSocket(
   socket: Socket,
@@ -57,7 +58,8 @@ export async function authenticateSocket(
   const roomId = typeof auth.roomId === 'string' ? auth.roomId : null;
   const visitorToken = typeof auth.visitorToken === 'string' ? auth.visitorToken : null;
 
-  if (roomId && visitorToken) {
+  if (auth.roomId !== undefined || auth.visitorToken !== undefined) {
+    if (!roomId || !visitorToken) { next(new Error('UNAUTHORIZED')); return; }
     const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
     if (!room || room.visitorTokenHash !== hashVisitorToken(visitorToken)) {
       next(new Error('UNAUTHORIZED'));
@@ -92,6 +94,18 @@ export async function authenticateSocket(
     return;
   }
 
+  socket.data.operatorToken = operatorToken;
   setIdentity(socket, { kind: 'operator', operatorId: operator.id, role: payload.role });
   next();
+}
+
+/** 장시간 연결도 만료·비활성 계정의 권한을 계속 유지하지 않는다. */
+export async function isSocketAuthorized(socket: Socket): Promise<boolean> {
+  const identity = identityOf(socket);
+  if (!identity || !socket.connected) return false;
+  if (identity.kind === 'customer') return true;
+  const payload = verifyOperatorToken(socket.data.operatorToken ?? '');
+  if (!payload || payload.operatorId !== identity.operatorId) return false;
+  const operator = await prisma.operator.findUnique({ where: { id: identity.operatorId } });
+  return Boolean(operator?.isActive);
 }

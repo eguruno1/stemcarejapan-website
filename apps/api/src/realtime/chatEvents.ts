@@ -1,7 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
 import { AppError } from '../common/errors';
-import { identityOf } from './authSocket';
+import { identityOf, isSocketAuthorized } from './authSocket';
 import { prisma } from '../db';
 import { requestHandoff } from '../chatRooms/chatRoomService';
 import { createMessageRow, listMessages } from '../messages/messageService';
@@ -55,12 +55,14 @@ export function registerChatEvents(io: Server, socket: Socket): void {
    * 영영 확정되지도 실패 표시되지도 않은 채 남는다 — ack(성공)도 error(실패, 대상 불명)도
    * 그 말풍선을 가리키지 못하기 때문이다.
    */
+  let eventQueue = Promise.resolve();
   function handle<T>(
     schema: z.ZodSchema<T>,
     fn: (input: T) => Promise<void>,
     errorContext: (input: unknown) => Record<string, unknown> = () => ({})
   ) {
-    return async (raw: unknown) => {
+    return (raw: unknown) => {
+      eventQueue = eventQueue.then(async () => {
       const parsed = schema.safeParse(raw);
       if (!parsed.success) {
         emitError(socket, 'VALIDATION_ERROR', '잘못된 요청입니다.', errorContext(raw));
@@ -68,6 +70,11 @@ export function registerChatEvents(io: Server, socket: Socket): void {
       }
 
       try {
+        if (!(await isSocketAuthorized(socket))) {
+          emitError(socket, 'UNAUTHORIZED', '다시 로그인해주세요.', errorContext(parsed.data));
+          socket.disconnect(true);
+          return;
+        }
         await fn(parsed.data);
       } catch (err) {
         const extra = errorContext(parsed.data);
@@ -78,6 +85,8 @@ export function registerChatEvents(io: Server, socket: Socket): void {
         console.error('[socket] unhandled', err);
         emitError(socket, 'INTERNAL_ERROR', '처리 중 문제가 발생했습니다.', extra);
       }
+      });
+      return eventQueue;
     };
   }
 
@@ -89,6 +98,15 @@ export function registerChatEvents(io: Server, socket: Socket): void {
       const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
       if (!room) throw new AppError(404, 'NOT_FOUND', '상담방을 찾을 수 없습니다.');
 
+      // 한 소켓은 현재 화면의 방 하나만 구독한다.
+      for (const channel of [...socket.rooms]) {
+        const previous = roomIdOf(channel);
+        if (previous && previous !== roomId) {
+          await socket.leave(channel);
+          broadcastPresence(io, previous);
+        }
+      }
+      if (!socket.connected) return;
       await socket.join(roomChannel(roomId));
 
       const viewer = identity.kind === 'customer' ? 'customer' : 'operator';
@@ -103,6 +121,13 @@ export function registerChatEvents(io: Server, socket: Socket): void {
       broadcastPresence(io, roomId);
     })
   );
+
+  socket.on('chat:leave', handle(JoinSchema, async ({ roomId }) => {
+    assertRoomAccess(socket, roomId);
+    await socket.leave(roomChannel(roomId));
+    broadcastPresence(io, roomId);
+    socket.emit('chat:left', { roomId });
+  }));
 
   socket.on(
     'chat:message',
@@ -170,14 +195,14 @@ export function registerChatEvents(io: Server, socket: Socket): void {
 
       if (notice) {
         await broadcastMessage(io, roomId, notice);
-        broadcastStatus(io, roomId, status, assignedOperatorId);
       }
+      broadcastStatus(io, roomId, status, assignedOperatorId);
     })
   );
 
-  socket.on('disconnect', () => {
+  socket.on('disconnecting', () => {
     // 이 소켓이 보고 있던 상담방들의 접속 상태를 갱신한다.
-    // Socket.IO 는 disconnect 이벤트를 먼저 쏘고 그 다음에 룸에서 소켓을 뺀다.
+    // disconnecting 시점에만 참가 중인 룸 목록이 남아 있다.
     // 그래서 바로 세면 방금 나간 소켓이 아직 집계에 남아 있다 — 다음 틱으로 미룬다.
     const watchedRoomIds = [...socket.rooms].map(roomIdOf).filter((id): id is string => id !== null);
 
