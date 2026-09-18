@@ -1,7 +1,9 @@
 import { createServer } from 'node:http';
 import { createApp } from './app';
-import { config } from './config';
+import { assertProductionConfig, config } from './config';
 import { createSocketServer } from './realtime/socketServer';
+
+assertProductionConfig();
 
 const app = createApp();
 const httpServer = createServer(app);
