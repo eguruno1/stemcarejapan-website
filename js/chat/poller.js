@@ -3,7 +3,8 @@ import { ChatApiError, fetchRoom } from './api.js';
 import { getSession, setConnection, setRoom, upsertMessages } from './state.js';
 
 let timerId = null;
-let inFlight = false;
+let inFlight = null;
+let generation = 0;
 let handlers = { onError: () => {} };
 
 /**
@@ -16,9 +17,13 @@ export async function pollOnce() {
   const session = getSession();
   if (!session || inFlight) return;
 
-  inFlight = true;
+  const requestId = {};
+  const version = generation;
+  inFlight = requestId;
+  const isCurrent = () => version === generation && getSession() === session;
   try {
     const room = await fetchRoom(session.roomId, session.visitorToken);
+    if (!isCurrent()) return;
     setRoom({
       status: room.status,
       customerName: room.customerName,
@@ -28,16 +33,17 @@ export async function pollOnce() {
     upsertMessages(room.messages);
     setConnection('ok');
   } catch (error) {
-    if (error instanceof ChatApiError && error.code === 'NETWORK_ERROR') {
-      // 네트워크 문제는 곧 회복될 수 있으므로 폴링을 멈추지 않는다.
-      setConnection('reconnecting');
-    } else {
-      // 401/403/404 는 세션이 잘못된 것이므로 멈춰야 한다.
+    if (!isCurrent()) return;
+    if (error instanceof ChatApiError && [401, 403, 404].includes(error.status)) {
+      const onError = handlers.onError;
       stopPolling();
-      handlers.onError(error);
+      onError(error);
+    } else {
+      // 서버 장애·잘못된 응답도 세션을 지우지 않고 다음 주기에 재시도한다.
+      setConnection('reconnecting');
     }
   } finally {
-    inFlight = false;
+    if (inFlight === requestId) inFlight = null;
   }
 }
 
@@ -61,6 +67,8 @@ function onVisibilityChange() {
 }
 
 export function stopPolling() {
+  generation += 1;
+  inFlight = null;
   if (timerId !== null) {
     window.clearInterval(timerId);
     timerId = null;

@@ -43,6 +43,7 @@ function errorKeyOf(error) {
 
 /** 저장된 세션이 서버에서 사라졌거나 만료됐을 때. */
 function onSessionLost(error) {
+  stopPolling();
   clearSession();
   setPhase('form', errorKeyOf(error));
 }
@@ -101,9 +102,6 @@ function bindPanelToggle(elements) {
     elements.toggle.setAttribute('aria-expanded', String(isOpen));
     elements.toggle.setAttribute('aria-label', isOpen ? t('close.label') : t('open.label'));
     if (isOpen && getState().phase === 'chat') {
-      // 열 때는 항상 최신 메시지를 보여준다.
-      scrollToBottom(elements.thread);
-      elements.newMsgButton.hidden = true;
       void pollOnce();
     }
   });
@@ -143,7 +141,10 @@ function bindStartForm(elements) {
 
     // 화면에서 먼저 막는다. 동의 전에는 API 를 아예 호출하지 않는다. (서버도 다시 검사한다)
     if (!serviceType) return setPhase('form', 'error.service');
-    if (!name || !phone) return setPhase('form', 'error.required');
+    if (!name || name.length > 50) return setPhase('form', 'error.name');
+    if (phone.length < 5 || phone.length > 30) return setPhase('form', 'error.phone');
+    if (email && !elements.startForm.elements.email.validity.valid) return setPhase('form', 'error.email');
+    if (message.length > 2000) return setPhase('form', 'error.length');
     if (!privacyAgreed) return setPhase('form', 'error.privacy');
 
     setPhase('starting');
@@ -180,10 +181,17 @@ async function submitMessage(text, clientMessageId) {
       text,
       clientMessageId
     });
+    if (getSession() !== session) return;
     resolvePendingMessage(clientMessageId, message);
     // 운영자 답변이 이미 와 있을 수 있으니 바로 한 번 더 확인한다.
     void pollOnce();
-  } catch {
+  } catch (error) {
+    if (getSession() !== session) return;
+    if (error instanceof ChatApiError && [401, 403, 404].includes(error.status)) {
+      onSessionLost(error);
+      return;
+    }
+    if (error instanceof ChatApiError && error.code === 'ROOM_CLOSED') void pollOnce();
     failPendingMessage(clientMessageId);
   }
 }
@@ -200,7 +208,7 @@ function bindComposer(elements) {
 
   // Enter = 전송, Shift+Enter = 줄바꿈
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
       event.preventDefault();
       elements.composer.requestSubmit();
     }
@@ -209,7 +217,7 @@ function bindComposer(elements) {
   elements.composer.addEventListener('submit', (event) => {
     event.preventDefault();
     const text = input.value.trim();
-    if (!text) return;
+    if (!text || text.length > 2000 || !getSession() || getState().room?.status === 'closed') return;
 
     const clientMessageId = newClientMessageId();
     addPendingMessage({ clientMessageId, text, createdAt: new Date().toISOString() });
@@ -217,9 +225,6 @@ function bindComposer(elements) {
     input.value = '';
     input.style.height = 'auto';
     elements.composerButton.disabled = true;
-    // 내가 보낸 메시지는 위로 올려보던 중이었더라도 따라 내려간다.
-    scrollToBottom(elements.thread);
-    elements.newMsgButton.hidden = true;
 
     void submitMessage(text, clientMessageId);
   });
@@ -255,12 +260,11 @@ function bindThreadActions(elements) {
 
   // 담당자 연결 요청
   elements.handoffButton.addEventListener('click', () => {
-    if (!getSession()) return;
+    if (!getSession() || getState().room?.status === 'closed') return;
 
     const clientMessageId = newClientMessageId();
     const text = t('handoff.message');
     addPendingMessage({ clientMessageId, text, createdAt: new Date().toISOString() });
-    scrollToBottom(elements.thread);
     void submitMessage(text, clientMessageId);
   });
 
@@ -268,6 +272,8 @@ function bindThreadActions(elements) {
   elements.newChatButton.addEventListener('click', () => {
     stopPolling();
     clearSession();
+    elements.composerInput.value = '';
+    elements.composerInput.style.height = 'auto';
   });
 }
 

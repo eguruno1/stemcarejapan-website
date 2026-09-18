@@ -51,6 +51,10 @@ const DICT = {
     'retry': '다시 시도',
 
     'error.required': '성함과 연락처를 입력해주세요.',
+    'error.name': '성함을 1~50자로 입력해주세요.',
+    'error.phone': '연락처를 5~30자로 입력해주세요.',
+    'error.email': '올바른 이메일을 입력해주세요.',
+    'error.length': '문의 내용을 2000자 이내로 입력해주세요.',
     'error.privacy': '개인정보 수집·이용에 동의해주세요.',
     'error.service': '상담 분야를 선택해주세요.',
     'error.network': '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
@@ -106,6 +110,10 @@ const DICT = {
     'retry': '再試行',
 
     'error.required': 'お名前と連絡先を入力してください。',
+    'error.name': 'お名前を1〜50文字で入力してください。',
+    'error.phone': '連絡先を5〜30文字で入力してください。',
+    'error.email': '正しいメールアドレスを入力してください。',
+    'error.length': 'お問い合わせは2000文字以内で入力してください。',
     'error.privacy': '個人情報の収集・利用に同意してください。',
     'error.service': '相談分野を選択してください。',
     'error.network': 'サーバーに接続できません。しばらくしてからお試しください。',

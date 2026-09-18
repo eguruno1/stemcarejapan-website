@@ -37,7 +37,7 @@ export function loadSession() {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed?.roomId || !parsed?.visitorToken) return null;
+    if (typeof parsed?.roomId !== 'string' || !parsed.roomId || typeof parsed?.visitorToken !== 'string' || !parsed.visitorToken) return null;
     state.session = parsed;
     return parsed;
   } catch {
@@ -112,7 +112,7 @@ export function upsertMessages(incoming) {
   );
 
   const confirmedClientIds = new Set(
-    incoming.map((m) => m.clientMessageId).filter(Boolean)
+    incoming.filter((m) => m.senderType === 'customer').map((m) => m.clientMessageId).filter(Boolean)
   );
   state.pending = state.pending.filter((p) => !confirmedClientIds.has(p.clientMessageId));
 
@@ -142,7 +142,7 @@ export function getPendingMessage(clientMessageId) {
 
 export function retryPendingMessage(clientMessageId) {
   const target = state.pending.find((p) => p.clientMessageId === clientMessageId);
-  if (!target) return null;
+  if (!target || target.status !== 'failed') return null;
   target.status = 'sending';
   notify();
   return target;

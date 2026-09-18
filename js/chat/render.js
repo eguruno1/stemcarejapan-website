@@ -73,11 +73,11 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
           </label>
           <label>
             <span data-i18n="field.name"></span>
-            <input type="text" name="name" autocomplete="name" data-i18n-placeholder="field.name.placeholder" />
+            <input type="text" name="name" maxlength="50" autocomplete="name" data-i18n-placeholder="field.name.placeholder" />
           </label>
           <label>
             <span data-i18n="field.phone"></span>
-            <input type="tel" name="phone" autocomplete="tel" data-i18n-placeholder="field.phone.placeholder" />
+            <input type="tel" name="phone" maxlength="30" autocomplete="tel" data-i18n-placeholder="field.phone.placeholder" />
           </label>
           <label>
             <span data-i18n="field.email"></span>
@@ -92,7 +92,7 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
           </label>
           <label>
             <span data-i18n="field.message"></span>
-            <textarea name="message" rows="3" data-i18n-placeholder="field.message.placeholder"></textarea>
+            <textarea maxlength="2000" name="message" rows="3" data-i18n-placeholder="field.message.placeholder"></textarea>
           </label>
 
           <div class="consult-chat-privacy">
@@ -126,7 +126,7 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
         </div>
 
         <form class="consult-chat-composer">
-          <textarea name="text" rows="1" data-i18n-placeholder="composer.placeholder"></textarea>
+          <textarea maxlength="2000" name="text" rows="1" data-i18n-placeholder="composer.placeholder"></textarea>
           <button type="submit" data-i18n="composer.send"></button>
         </form>
 
@@ -238,6 +238,10 @@ export function renderThread(elements, state) {
   const thread = elements.thread;
   const wasNearBottom = isNearBottom(thread);
   const previousCount = thread.children.length;
+  const previousTop = thread.scrollTop;
+  const anchor = [...thread.children].find(node => node.offsetTop + node.offsetHeight > thread.scrollTop);
+  const anchorId = anchor?.dataset.messageId || anchor?.dataset.clientMessageId;
+  const anchorOffset = anchor ? anchor.offsetTop - previousTop : 0;
 
   const fragment = document.createDocumentFragment();
   for (const message of state.messages) fragment.appendChild(messageNode(message));
@@ -250,8 +254,10 @@ export function renderThread(elements, state) {
   if (wasNearBottom) {
     scrollToBottom(thread);
     elements.newMsgButton.hidden = true;
-  } else if (grew) {
-    elements.newMsgButton.hidden = false;
+  } else {
+    const restored = [...thread.children].find(node => (node.dataset.messageId || node.dataset.clientMessageId) === anchorId);
+    thread.scrollTop = restored ? restored.offsetTop - anchorOffset : previousTop;
+    if (grew) elements.newMsgButton.hidden = false;
   }
 }
 

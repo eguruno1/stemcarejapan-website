@@ -6,6 +6,7 @@
  * 운영 배포(Phase 6)에서 Nginx 가 /api 를 API 서버로 넘겨준다.
  */
 export const API_BASE = (() => {
+  if (window.STEMCARE_CHAT_API_URL) return window.STEMCARE_CHAT_API_URL.replace(/\/$/, '');
   const host = window.location.hostname;
   if (host === 'localhost' || host === '127.0.0.1') {
     return 'http://localhost:4000';

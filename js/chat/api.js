@@ -49,6 +49,9 @@ async function request(path, { method = 'GET', body, visitorToken } = {}) {
     throw new ChatApiError(response.status, code, message);
   }
 
+  if (!payload || typeof payload !== 'object') {
+    throw new ChatApiError(502, 'INVALID_RESPONSE', 'invalid server response');
+  }
   return payload;
 }
 
