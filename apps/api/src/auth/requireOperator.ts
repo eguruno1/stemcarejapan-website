@@ -3,6 +3,8 @@ import type { OperatorRole } from '@stemcare/shared';
 import { config } from '../config';
 import { unauthorized } from '../common/errors';
 import { verifyOperatorToken } from './token';
+import { getOperatorById } from './authService';
+import { asyncHandler } from '../common/asyncHandler';
 
 // Express 의 Request 타입에 operator 속성을 추가로 알려준다.
 declare global {
@@ -14,7 +16,7 @@ declare global {
   }
 }
 
-export const requireOperator: RequestHandler = (req, _res, next) => {
+export const requireOperator: RequestHandler = asyncHandler(async (req, _res, next) => {
   const token = req.cookies?.[config.adminCookieName];
 
   if (typeof token !== 'string' || token.length === 0) {
@@ -28,6 +30,7 @@ export const requireOperator: RequestHandler = (req, _res, next) => {
     return;
   }
 
-  req.operator = payload;
+  const operator = await getOperatorById(payload.operatorId);
+  req.operator = { operatorId: operator.id, role: operator.role };
   next();
-};
+});

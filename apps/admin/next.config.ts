@@ -1,4 +1,10 @@
 import type { NextConfig } from 'next';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { loadEnvFile } from 'node:process';
+
+const rootEnv = resolve(__dirname, '../../.env');
+if (existsSync(rootEnv)) loadEnvFile(rootEnv);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

@@ -22,6 +22,9 @@ npm install
 cp .env.example .env
 npm run build -w packages/shared
 docker compose up -d postgres
+npm run db:generate -w apps/api
+npm run db:migrate:deploy -w apps/api
+npm run db:seed -w apps/api
 ```
 
 ## 매일 개발할 때
@@ -64,3 +67,13 @@ npm run dev:admin
 **`@stemcare/shared` 를 못 찾는다**
 `npm run build -w packages/shared` 를 실행한다. `package.json` 의 `main` 이
 `dist/index.js` 를 가리키므로 빌드 전에는 찾지 못한다.
+
+## Phase 0·1 검토 완료 (2026-09-18)
+
+- Node.js 22, 홈페이지 8080 / API 4000 / 관리자 3100 / PostgreSQL 5434를 사용한다.
+- 관리자도 루트 `.env`를 읽는다. `NEXT_PUBLIC_API_URL` 변경 후 개발 서버를 재시작하고 배포용 빌드는 다시 생성한다.
+- API·shared는 CommonJS이며 관리자 앱은 Next.js의 `module: esnext`, `moduleResolution: bundler` 설정을 유지한다.
+- `npm test`는 별도 테스트 DB만 초기화한다. `TEST_DATABASE_URL`은 필수이며 DB 이름은 `_test`로 끝나고 개발 DB와 달라야 한다. 직접 Vitest를 실행해도 같은 검사가 적용된다.
+- 현재 관리자 화면은 API 연결 확인 화면이다. 고객 위젯·운영자 업무 화면·Socket.IO·AI 기능은 Phase 2~5에서 구현한다.
+- 초기 관리자 비밀번호 변경 UI는 아직 없다. 운영용 초기 계정은 seed 전에 `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`를 지정한다. seed 재실행은 기존 계정의 비밀번호를 바꾸지 않는다.
+- 완료 내역과 검증 근거는 `docs/plans/working/`의 Phase 0·1 문서에 기록한다. `docs/`는 현재 Git 제외 대상이다.
