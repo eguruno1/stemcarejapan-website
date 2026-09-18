@@ -129,3 +129,15 @@ export interface CustomerHistoryItem {
   closedAt: string | null;
   messageCount: number;
 }
+
+export interface OpsMetrics {
+  waitingRooms: number;
+  activeRooms: number;
+  botRooms: number;
+  todayStarted: number;
+  /** 고객 마지막 메시지 이후 10분 넘게 응답이 없는 상담 수 */
+  unansweredOver10Min: number;
+  translationFailures24h: number;
+  socketConnections: number;
+  dbOk: boolean;
+}

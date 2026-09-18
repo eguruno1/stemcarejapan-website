@@ -6,7 +6,8 @@ import type {
   Language,
   MessageDTO,
   OperatorDTO,
-  OperatorNoteDTO
+  OperatorNoteDTO,
+  OpsMetrics
 } from '@stemcare/shared';
 import { API_URL } from './env';
 
@@ -185,4 +186,11 @@ export async function fetchCustomerHistory(roomId: string): Promise<CustomerHist
     `/api/admin/chat-rooms/${encodeURIComponent(roomId)}/customer-history`
   );
   return res.history;
+}
+
+/* ---------- 운영 지표 (Phase 6) ---------- */
+
+export async function fetchMetrics(): Promise<OpsMetrics> {
+  const res = await request<{ metrics: OpsMetrics }>('/api/admin/ops/metrics');
+  return res.metrics;
 }

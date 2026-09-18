@@ -39,6 +39,12 @@ export default function ChatsLayout({ children }: { children: React.ReactNode })
         }}
       >
         <strong style={{ fontSize: 13 }}>StemCareJapan 상담 관리자</strong>
+        <Link
+          href="/chats/ops"
+          style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}
+        >
+          운영 현황
+        </Link>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           {operator.name} · {operator.role === 'admin' ? '관리자' : '운영자'}
         </span>
