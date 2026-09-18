@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AppError } from '../common/errors';
 import { identityOf, isSocketAuthorized } from './authSocket';
 import { prisma } from '../db';
+import { runBotTurn } from '../ai/consultationBot';
 import { translateMessageInBackground } from '../ai/translationPipeline';
 import { requestHandoff } from '../chatRooms/chatRoomService';
 import { createMessageRow, listMessages } from '../messages/messageService';
@@ -148,6 +149,14 @@ export function registerChatEvents(io: Server, socket: Socket): void {
         senderId = identity.operatorId;
       }
 
+      // 재전송(같은 clientMessageId)인지 미리 알아둔다 - AI 턴은 새 메시지에만 돌려야
+      // 한다. 재전송에도 매번 돌리면 같은 입력에 안내 문구나 답변이 중복 생성된다.
+      const isRetry = Boolean(
+        await prisma.message.findUnique({
+          where: { chatRoomId_clientMessageId: { chatRoomId: roomId, clientMessageId } }
+        })
+      );
+
       // createMessageRow 가 방 잠금 안에서 존재 확인·종료 확인·clientMessageId 충돌
       // 검사를 전부 수행한다. HTTP 라우트와 완전히 같은 검증 로직이다.
       const row = await createMessageRow({
@@ -172,8 +181,10 @@ export function registerChatEvents(io: Server, socket: Socket): void {
       // 원문을 먼저 전달한 뒤 번역을 시작한다. await 하지 않는다 — 번역이 몇 초
       // 걸려도 메시지 전달은 이미 끝나 있어야 한다. 운영자가 미리보기로 번역을
       // 붙여 보내는 메시지(Task 4)는 여기서 번역하지 않는다 — 대상 언어가 반대다.
+      // 고객 메시지에만 AI 가 반응한다. 번역과 병렬로 진행된다.
       if (identity.kind === 'customer') {
         void translateMessageInBackground(io, row.id);
+        if (!isRetry) void runBotTurn(io, roomId);
       }
     }, clientMessageIdOf)
   );

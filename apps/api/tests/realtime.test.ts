@@ -238,7 +238,11 @@ describe('chat:message', () => {
     socket.emit('chat:message', { roomId: room.id, text: '중복', clientMessageId: 'dup' });
     await waitFor(socket, 'chat:message:ack');
 
-    expect(await prisma.message.count({ where: { chatRoomId: room.id } })).toBe(1);
+    // AI 상담 봇이 실패 시 운영자 전환 안내를 남길 수 있으므로(OPENAI_API_KEY 없음),
+    // 전체 메시지 수가 아니라 "고객 메시지가 중복 저장되지 않았는지"만 확인한다.
+    expect(
+      await prisma.message.count({ where: { chatRoomId: room.id, senderType: 'customer' } })
+    ).toBe(1);
   });
 
   it('빈 메시지는 오류를 돌려준다', async () => {

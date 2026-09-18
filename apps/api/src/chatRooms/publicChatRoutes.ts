@@ -6,6 +6,7 @@ import { validateBody } from '../common/validate';
 import { prisma } from '../db';
 import { createMessageRow, listMessages } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
+import { runBotTurn } from '../ai/consultationBot';
 import { translateMessageInBackground } from '../ai/translationPipeline';
 import { broadcastMessage, broadcastStatus, notifyOperators } from '../realtime/emitters';
 import { getIo } from '../realtime/socketServer';
@@ -44,6 +45,10 @@ publicChatRoutes.post(
     const io = getIo();
     if (io) notifyOperators(io, { roomId: result.roomId, kind: 'chat_started' });
 
+    // 첫 메시지가 있으면 AI 가 곧바로 응답한다. 없으면 generateBotReply 가
+    // skip 을 돌려주므로 안전하다 (AI 첫 인사는 Task 7 에서 따로 처리한다).
+    void runBotTurn(io, result.roomId);
+
     res.status(201).json(result);
   })
 );
@@ -78,6 +83,16 @@ publicChatRoutes.post(
     const body = req.body as z.infer<typeof CustomerMessageSchema>;
     const customer = await prisma.customer.findUniqueOrThrow({ where: { id: room.customerId } });
 
+    // 재전송(같은 clientMessageId)인지 미리 알아둔다 - AI 턴은 새 메시지에만 돌려야
+    // 한다. 재전송에도 매번 돌리면 같은 입력에 안내 문구나 답변이 중복 생성된다.
+    const isRetry = body.clientMessageId
+      ? Boolean(
+          await prisma.message.findUnique({
+            where: { chatRoomId_clientMessageId: { chatRoomId: room.id, clientMessageId: body.clientMessageId } }
+          })
+        )
+      : false;
+
     const row = await createMessageRow({
       chatRoomId: room.id,
       senderType: 'customer',
@@ -92,6 +107,7 @@ publicChatRoutes.post(
 
     // 원문을 먼저 응답한 뒤 번역을 시작한다. await 하지 않는다.
     void translateMessageInBackground(io, row.id);
+    if (!isRetry) void runBotTurn(io, room.id);
 
     res.status(201).json({ message: toMessageDTO(row, 'customer') });
   })

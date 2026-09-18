@@ -18,13 +18,16 @@ const validPayload = {
   privacyAgreed: true
 };
 
+// 파일 전체가 하나의 prisma 연결을 공유한다. describe 블록마다 disconnect 하면
+// 아직 끝나지 않은 백그라운드 작업(AI 상담 봇 등)이 끊긴 연결에 걸려 이후
+// 블록의 resetDatabase 까지 함께 깨진다 — 그래서 파일 끝에서 한 번만 끊는다.
+afterAll(async () => {
+  await disconnectDatabase();
+});
+
 describe('POST /api/public/chat/start', () => {
   beforeEach(async () => {
     await resetDatabase();
-  });
-
-  afterAll(async () => {
-    await disconnectDatabase();
   });
 
   it('고객과 상담방을 만들고 visitorToken 을 반환한다', async () => {
