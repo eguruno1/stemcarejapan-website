@@ -80,6 +80,10 @@
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
+  /* thread 의 min-height 가 flex 가 실제로 내줄 수 있는 공간보다 크면
+     (평가 패널이 함께 뜬 경우 등) thread 가 이 래퍼보다 커져 다음 형제
+     요소(평가 패널) 위로 흘러넘친다 - 래퍼 기준으로 잘라 막는다. */
+  overflow: hidden;
 }
 
 .consult-chat-thread {
@@ -94,6 +98,9 @@
   gap: 10px;
   min-height: 200px;
 }
+
+/* 평가 패널이 함께 뜰 때는 최소 높이를 줄여 패널 전체 높이 예산 안에 맞춘다. */
+.consult-chat-thread.is-compact { min-height: 60px; }
 
 .consult-chat-msg {
   max-width: 82%;
@@ -173,6 +180,80 @@
 }
 
 .consult-chat-newmsg[hidden] { display: none; }
+
+/* ---------- 상담 종료 후 평가 ---------- */
+.consult-chat-feedback {
+  flex: none;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fbfaf7;
+}
+
+.consult-chat-feedback[hidden] { display: none; }
+
+.consult-chat-feedback .fb-title {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.consult-chat-feedback .fb-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: #7a8798;
+}
+
+.fb-stars { display: flex; gap: 2px; margin-bottom: 8px; }
+
+.fb-star {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font-size: 22px;
+  line-height: 1;
+  color: #d8d2c4;
+  cursor: pointer;
+}
+
+.fb-star.is-on { color: #b8922d; }
+
+.consult-chat-feedback textarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.fb-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+.fb-actions button {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #fff;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fb-actions button[data-role='fb-submit'] {
+  background: #b8922d;
+  border-color: #b8922d;
+  color: #fff;
+}
+
+.fb-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.consult-chat-feedback .fb-done {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #1a7f37;
+}
+
+.consult-chat-feedback .fb-done[hidden] { display: none; }
 
 /* ---------- 입력창 ---------- */
 .consult-chat-composer {

@@ -14,7 +14,8 @@ const state = {
   connection: 'idle',   // 'idle' | 'ok' | 'reconnecting'
   transport: 'none',    // 'none' | 'socket' | 'polling'
   peerTyping: false,
-  presence: { operatorOnline: false, anyOperatorOnline: false }
+  presence: { operatorOnline: false, anyOperatorOnline: false },
+  feedback: 'hidden'    // 'hidden' | 'prompt' | 'sending' | 'done'
 };
 
 const listeners = new Set();
@@ -75,6 +76,7 @@ export function clearSession() {
   state.transport = 'none';
   state.peerTyping = false;
   state.presence = { operatorOnline: false, anyOperatorOnline: false };
+  state.feedback = 'hidden';
   try {
     window.localStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -98,6 +100,12 @@ export function setPhase(phase, errorKey = null) {
 export function setConnection(connection) {
   if (state.connection === connection) return;
   state.connection = connection;
+  notify();
+}
+
+export function setFeedbackPhase(phase) {
+  if (state.feedback === phase) return;
+  state.feedback = phase;
   notify();
 }
 

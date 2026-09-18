@@ -1,4 +1,4 @@
-import { ChatApiError, startChat } from './api.js';
+import { ChatApiError, startChat, submitFeedback as submitFeedbackApi } from './api.js';
 import { getLang, t } from './i18n.js';
 import {
   refreshNow,
@@ -19,6 +19,7 @@ import {
   retryPendingMessage,
   saveSession,
   setConnection,
+  setFeedbackPhase,
   setPhase,
   subscribe
 } from './state.js';
@@ -63,12 +64,31 @@ function init() {
     defaultLanguage: getLang()
   });
 
-  subscribe((state) => renderState(elements, state));
+  // 상담 상태가 closed 로 바뀌는 순간에만 평가를 권한다. previousStatus 를
+  // null 로 시작해두면, 이미 종료된 상담을 새로고침으로 다시 열었을 때
+  // (첫 notify) 는 조건에 안 걸려 평가창이 매번 다시 뜨지 않는다.
+  let previousStatus = null;
+  subscribe((state) => {
+    const status = state.room?.status ?? null;
+
+    if (status === 'closed' && previousStatus !== null && previousStatus !== 'closed') {
+      if (state.feedback === 'hidden') setFeedbackPhase('prompt');
+    }
+    previousStatus = status;
+
+    // setFeedbackPhase 를 부르면 notify() 가 이 콜백을 곧바로(동기) 다시
+    // 부른다 - 그 안쪽 호출이 이미 최신 state 로 한 번 그린 뒤 되돌아온다.
+    // 여기서 매개변수 state(호출 당시 스냅샷)로 다시 그리면 feedback 값이
+    // 'hidden' 이던 옛 스냅샷이 방금 그린 화면을 덮어써 평가창이 계속
+    // 숨어 있게 된다. 항상 최신 상태를 다시 읽어서 그린다.
+    renderState(elements, getState());
+  });
 
   bindPanelToggle(elements);
   bindStartForm(elements);
   bindComposer(elements);
   bindThreadActions(elements);
+  bindFeedback(elements);
   bindLanguageChange(elements);
 
   restoreSession();
@@ -282,6 +302,52 @@ function bindThreadActions(elements) {
     clearSession();
     elements.composerInput.value = '';
     elements.composerInput.style.height = 'auto';
+  });
+}
+
+/* ---------- 상담 종료 후 평가 ---------- */
+
+function bindFeedback(elements) {
+  // 별점 선택 (이벤트 위임)
+  elements.fbStars.addEventListener('click', (event) => {
+    const button = event.target.closest('.fb-star');
+    if (!button) return;
+
+    const rating = Number(button.dataset.rating);
+    elements.fbStars.dataset.selected = String(rating);
+
+    for (const star of elements.fbStars.querySelectorAll('.fb-star')) {
+      const isOn = Number(star.dataset.rating) <= rating;
+      star.classList.toggle('is-on', isOn);
+      star.setAttribute('aria-checked', String(Number(star.dataset.rating) === rating));
+    }
+
+    elements.fbSubmit.disabled = false;
+  });
+
+  elements.fbSkip.addEventListener('click', () => setFeedbackPhase('hidden'));
+
+  elements.fbSubmit.addEventListener('click', async () => {
+    const session = getSession();
+    const rating = Number(elements.fbStars.dataset.selected);
+    if (!session || !rating) return;
+
+    setFeedbackPhase('sending');
+
+    try {
+      await submitFeedbackApi(session.roomId, session.visitorToken, {
+        rating,
+        comment: elements.fbComment.value.trim()
+      });
+      setFeedbackPhase('done');
+    } catch (error) {
+      // 이미 평가했다면 감사 문구를 보여주고 끝낸다. 오류로 취급하지 않는다.
+      if (error instanceof ChatApiError && error.code === 'ALREADY_SUBMITTED') {
+        setFeedbackPhase('already');
+        return;
+      }
+      setFeedbackPhase('prompt');
+    }
   });
 }
 

@@ -74,3 +74,11 @@ export function sendMessage(roomId, visitorToken, { text, clientMessageId }) {
 export function requestHandoff(roomId, visitorToken) {
   return request(`/api/public/chat/${encodeURIComponent(roomId)}/handoff`, { method: 'POST', visitorToken });
 }
+
+export function submitFeedback(roomId, visitorToken, { rating, comment }) {
+  return request(`/api/public/chat/${encodeURIComponent(roomId)}/feedback`, {
+    method: 'POST',
+    visitorToken,
+    body: { rating, comment: comment || undefined }
+  });
+}

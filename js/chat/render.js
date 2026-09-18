@@ -48,6 +48,15 @@ function serviceOptionsHtml(preselected) {
     .join('');
 }
 
+function feedbackStarsHtml() {
+  return [1, 2, 3, 4, 5]
+    .map(
+      (n) =>
+        `<button type="button" class="fb-star" data-rating="${n}" role="radio" aria-checked="false" aria-label="${n}">★</button>`
+    )
+    .join('');
+}
+
 export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}) {
   const root = document.createElement('div');
   root.className = 'consult-chat';
@@ -126,6 +135,20 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
                   data-i18n="newMessages" hidden></button>
         </div>
 
+        <div class="consult-chat-feedback" data-role="feedback" hidden>
+          <p class="fb-title" data-i18n="feedback.title"></p>
+          <p class="fb-hint" data-i18n="feedback.hint"></p>
+          <div class="fb-stars" data-role="fb-stars" role="radiogroup" data-i18n-aria="feedback.title">
+            ${feedbackStarsHtml()}
+          </div>
+          <textarea data-role="fb-comment" rows="2" data-i18n-placeholder="feedback.comment"></textarea>
+          <div class="fb-actions">
+            <button type="button" data-role="fb-skip" data-i18n="feedback.skip"></button>
+            <button type="button" data-role="fb-submit" data-i18n="feedback.submit" disabled></button>
+          </div>
+          <p class="fb-done" data-role="fb-done" hidden></p>
+        </div>
+
         <form class="consult-chat-composer">
           <textarea maxlength="2000" name="text" rows="1" data-i18n-placeholder="composer.placeholder"></textarea>
           <button type="submit" data-i18n="composer.send"></button>
@@ -167,7 +190,13 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
     composerInput: root.querySelector('.consult-chat-composer textarea'),
     composerButton: root.querySelector('.consult-chat-composer button'),
     handoffButton: root.querySelector('[data-role="handoff"]'),
-    newChatButton: root.querySelector('[data-role="new-chat"]')
+    newChatButton: root.querySelector('[data-role="new-chat"]'),
+    feedback: root.querySelector('[data-role="feedback"]'),
+    fbStars: root.querySelector('[data-role="fb-stars"]'),
+    fbComment: root.querySelector('[data-role="fb-comment"]'),
+    fbSubmit: root.querySelector('[data-role="fb-submit"]'),
+    fbSkip: root.querySelector('[data-role="fb-skip"]'),
+    fbDone: root.querySelector('[data-role="fb-done"]')
   };
 
   applyStaticLabels(elements);
@@ -307,6 +336,28 @@ export function renderState(elements, state) {
   elements.composerInput.disabled = closed;
   elements.composerButton.disabled = closed || elements.composerInput.value.trim() === '';
   elements.handoffButton.hidden = closed || status === 'active';
+
+  // 상담이 종료되면 평가를 한 번 권한다.
+  const showFeedback = closed && state.feedback !== 'hidden';
+  elements.feedback.hidden = !showFeedback;
+  // 평가 패널이 뜨면 메시지 목록의 최소 높이(200px)와 함께 패널 전체
+  // max-height(min(70vh,560px))를 넘어서 스레드와 평가 패널이 겹쳐
+  // 보인다 - 상담이 끝난 뒤라 스레드를 넓게 볼 필요도 적으므로 줄인다.
+  elements.thread.classList.toggle('is-compact', showFeedback);
+  if (showFeedback) {
+    // 제출을 마치면(또는 이미 제출한 상태라면) 별점/의견 입력은 감추고
+    // 감사 문구만 남긴다 - 그대로 두면 이미 보낸 평가를 또 보낼 수 있다.
+    const isDone = state.feedback === 'done' || state.feedback === 'already';
+    elements.fbStars.hidden = isDone;
+    elements.fbComment.hidden = isDone;
+    elements.fbSubmit.hidden = isDone;
+    elements.fbSkip.hidden = isDone;
+    elements.fbDone.hidden = !isDone;
+    if (isDone) {
+      elements.fbDone.textContent = state.feedback === 'already' ? t('feedback.already') : t('feedback.thanks');
+    }
+    elements.fbSubmit.disabled = state.feedback === 'sending' || !elements.fbStars.dataset.selected;
+  }
 
   renderThread(elements, state);
 }

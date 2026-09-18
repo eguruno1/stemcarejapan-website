@@ -68,7 +68,15 @@ const DICT = {
     'peer.typing': '입력 중…',
     'presence.online': '담당자 접속 중',
     'presence.inRoom': '담당자가 상담방에 있습니다',
-    'presence.offline': '현재 담당자가 부재중입니다. 메시지를 남겨주시면 확인 후 연락드립니다.'
+    'presence.offline': '현재 담당자가 부재중입니다. 메시지를 남겨주시면 확인 후 연락드립니다.',
+
+    'feedback.title': '상담은 어떠셨나요?',
+    'feedback.hint': '평가를 남겨주시면 서비스 개선에 활용하겠습니다.',
+    'feedback.comment': '남기고 싶은 말씀 (선택)',
+    'feedback.submit': '평가 보내기',
+    'feedback.thanks': '소중한 의견 감사합니다.',
+    'feedback.already': '이미 평가를 남기셨습니다. 감사합니다.',
+    'feedback.skip': '건너뛰기'
   },
   ja: {
     'open.label': '無料相談チャットを開く',
@@ -132,7 +140,15 @@ const DICT = {
     'peer.typing': '入力中…',
     'presence.online': '担当者がオンラインです',
     'presence.inRoom': '担当者が相談ルームにいます',
-    'presence.offline': '現在担当者が不在です。メッセージを残していただければ、確認後ご連絡いたします。'
+    'presence.offline': '現在担当者が不在です。メッセージを残していただければ、確認後ご連絡いたします。',
+
+    'feedback.title': 'ご相談はいかがでしたか。',
+    'feedback.hint': '評価をいただけますと、サービス改善に活用いたします。',
+    'feedback.comment': 'ご意見（任意）',
+    'feedback.submit': '評価を送信',
+    'feedback.thanks': '貴重なご意見をありがとうございます。',
+    'feedback.already': 'すでに評価をいただいております。ありがとうございます。',
+    'feedback.skip': 'スキップ'
   }
 };
 

@@ -79,6 +79,15 @@ export default function OpsPage() {
           />
           <Tile label="실시간 연결" value={metrics.socketConnections} />
           <Tile label="DB" value={metrics.dbOk ? '정상' : '장애'} warn={!metrics.dbOk} />
+          <Tile
+            label="평균 만족도 (30일)"
+            value={
+              metrics.avgRating30d === null
+                ? '평가 없음'
+                : `${metrics.avgRating30d} / 5 (${metrics.feedbackCount30d}건)`
+            }
+            warn={metrics.avgRating30d !== null && metrics.avgRating30d < 3.5}
+          />
         </div>
       )}
 

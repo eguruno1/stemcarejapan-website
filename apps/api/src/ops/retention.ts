@@ -77,6 +77,8 @@ export async function deleteOldMessages(now = new Date()): Promise<number> {
   // 요약도 대화 내용을 담고 있으므로 함께 지운다.
   await prisma.chatSummary.deleteMany({ where: { chatRoomId: { in: roomIds } } });
   await prisma.operatorNote.deleteMany({ where: { chatRoomId: { in: roomIds } } });
+  // 평가 의견란에도 개인적인 내용이 들어갈 수 있다.
+  await prisma.chatFeedback.deleteMany({ where: { chatRoomId: { in: roomIds } } });
 
   if (result.count > 0) {
     logger.info(

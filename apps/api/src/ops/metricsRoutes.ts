@@ -3,6 +3,7 @@ import type { OpsMetrics } from '@stemcare/shared';
 import { requireOperator } from '../auth/requireOperator';
 import { asyncHandler } from '../common/asyncHandler';
 import { prisma } from '../db';
+import { averageRating } from '../feedback/feedbackService';
 import { getIo } from '../realtime/socketServer';
 
 export const metricsRoutes = Router();
@@ -24,22 +25,30 @@ metricsRoutes.get(
       dbOk = false;
     }
 
-    const [waitingRooms, activeRooms, botRooms, todayStarted, unansweredOver10Min, translationFailures24h] =
-      await Promise.all([
-        prisma.chatRoom.count({ where: { status: 'waiting' } }),
-        prisma.chatRoom.count({ where: { status: 'active' } }),
-        prisma.chatRoom.count({ where: { status: 'bot' } }),
-        prisma.chatRoom.count({ where: { createdAt: { gte: startOfToday } } }),
-        prisma.chatRoom.count({
-          where: {
-            status: { in: ['waiting', 'active'] },
-            lastMessageAt: { lt: tenMinutesAgo }
-          }
-        }),
-        prisma.message.count({
-          where: { translationStatus: 'failed', createdAt: { gte: dayAgo } }
-        })
-      ]);
+    const [
+      waitingRooms,
+      activeRooms,
+      botRooms,
+      todayStarted,
+      unansweredOver10Min,
+      translationFailures24h,
+      ratingStats
+    ] = await Promise.all([
+      prisma.chatRoom.count({ where: { status: 'waiting' } }),
+      prisma.chatRoom.count({ where: { status: 'active' } }),
+      prisma.chatRoom.count({ where: { status: 'bot' } }),
+      prisma.chatRoom.count({ where: { createdAt: { gte: startOfToday } } }),
+      prisma.chatRoom.count({
+        where: {
+          status: { in: ['waiting', 'active'] },
+          lastMessageAt: { lt: tenMinutesAgo }
+        }
+      }),
+      prisma.message.count({
+        where: { translationStatus: 'failed', createdAt: { gte: dayAgo } }
+      }),
+      averageRating(30)
+    ]);
 
     const metrics: OpsMetrics = {
       waitingRooms,
@@ -49,7 +58,9 @@ metricsRoutes.get(
       unansweredOver10Min,
       translationFailures24h,
       socketConnections: getIo()?.sockets.sockets.size ?? 0,
-      dbOk
+      dbOk,
+      avgRating30d: ratingStats.avg,
+      feedbackCount30d: ratingStats.count
     };
 
     res.json({ metrics });

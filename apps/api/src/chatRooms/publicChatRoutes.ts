@@ -8,6 +8,7 @@ import { createMessageRow, listMessages } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
 import { runBotTurn } from '../ai/consultationBot';
 import { translateMessageInBackground } from '../ai/translationPipeline';
+import { submitFeedback } from '../feedback/feedbackService';
 import { broadcastMessage, broadcastStatus, notifyOperators } from '../realtime/emitters';
 import { getIo } from '../realtime/socketServer';
 import { assertRoomOpen, authorizeVisitor, requestHandoff, startChat } from './chatRoomService';
@@ -28,6 +29,11 @@ const StartChatSchema = z.object({
 const CustomerMessageSchema = z.object({
   text: z.string().trim().min(1, '메시지를 입력해주세요.').max(2000),
   clientMessageId: z.string().trim().min(1).max(100).optional()
+});
+
+const FeedbackSchema = z.object({
+  rating: z.number().int().min(1, '1~5 사이로 평가해주세요.').max(5, '1~5 사이로 평가해주세요.'),
+  comment: z.string().max(1000).optional()
 });
 
 function visitorTokenOf(req: { header(name: string): string | undefined }): string | undefined {
@@ -112,6 +118,24 @@ publicChatRoutes.post(
     if (!isRetry) void runBotTurn(io, room.id);
 
     res.status(201).json({ message: toMessageDTO(row, 'customer') });
+  })
+);
+
+// assertRoomOpen 을 쓰지 않는다 - 평가는 종료된 상담에만 하는 것이므로
+// 반대 조건이다. 그 검사는 submitFeedback 안에 있다.
+publicChatRoutes.post(
+  '/:roomId/feedback',
+  validateBody(FeedbackSchema),
+  asyncHandler(async (req, res) => {
+    const room = await authorizeVisitor(req.params.roomId, visitorTokenOf(req));
+    const body = req.body as z.infer<typeof FeedbackSchema>;
+
+    const feedback = await submitFeedback(room.id, {
+      rating: body.rating as 1 | 2 | 3 | 4 | 5,
+      comment: body.comment
+    });
+
+    res.status(201).json({ feedback });
   })
 );
 

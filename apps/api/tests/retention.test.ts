@@ -141,6 +141,21 @@ describe('deleteOldMessages', () => {
     expect(deleted).toBe(0);
     expect(await prisma.message.count()).toBe(1);
   });
+
+  it('보관 기간이 지난 상담의 평가 의견도 함께 지운다', async () => {
+    const { room } = await createCustomerWithRoom();
+    await prisma.chatFeedback.create({
+      data: { chatRoomId: room.id, rating: 5, comment: '오래된 의견' }
+    });
+    await prisma.chatRoom.update({
+      where: { id: room.id },
+      data: { status: 'closed', closedAt: daysAgo(DELETE_MESSAGES_AFTER_DAYS + 1) }
+    });
+
+    await deleteOldMessages();
+
+    expect(await prisma.chatFeedback.count({ where: { chatRoomId: room.id } })).toBe(0);
+  });
 });
 
 describe('runRetention', () => {

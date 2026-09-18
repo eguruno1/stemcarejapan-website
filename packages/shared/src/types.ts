@@ -140,4 +140,19 @@ export interface OpsMetrics {
   translationFailures24h: number;
   socketConnections: number;
   dbOk: boolean;
+  /** 최근 30일 평균 평점. 평가가 하나도 없으면 null */
+  avgRating30d: number | null;
+  feedbackCount30d: number;
+}
+
+export interface SubmitFeedbackRequest {
+  rating: 1 | 2 | 3 | 4 | 5;
+  comment?: string;
+}
+
+export interface ChatFeedbackDTO {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
 }
