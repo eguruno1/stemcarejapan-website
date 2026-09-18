@@ -42,6 +42,29 @@ export async function broadcastMessage(io: Server, roomId: string, row: Message)
   io.to(OPERATORS_CHANNEL).emit('rooms:updated', { roomId });
 }
 
+/**
+ * 이미 화면에 그려진 메시지를 갱신한다. (번역문이 늦게 도착한 경우 등)
+ * 클라이언트는 같은 id 의 메시지를 찾아 내용을 바꿔야 한다.
+ *
+ * broadcastMessage 와 같은 인증·방 멤버십 재확인 패턴을 쓴다 — 순회 중 비동기로
+ * isSocketAuthorized 를 기다리는 동안 소켓이 방을 나갔을 수 있어서다.
+ */
+export async function broadcastMessageUpdate(io: Server, roomId: string, row: Message): Promise<void> {
+  const channel = roomChannel(roomId);
+
+  for (const [, socket] of io.sockets.sockets) {
+    if (!socket.rooms.has(channel)) continue;
+
+    const identity = identityOf(socket);
+    if (!identity) continue;
+    if (!(await isSocketAuthorized(socket))) { socket.disconnect(true); continue; }
+    if (!socket.rooms.has(channel)) continue;
+
+    const viewer = identity.kind === 'customer' ? 'customer' : 'operator';
+    socket.emit('chat:message:update', { message: toMessageDTO(row, viewer) });
+  }
+}
+
 export function broadcastStatus(
   io: Server,
   roomId: string,

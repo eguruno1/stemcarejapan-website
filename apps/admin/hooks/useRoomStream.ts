@@ -158,6 +158,9 @@ export function useRoomStream(roomId: string) {
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('chat:message', handleMessage);
+    // 번역문이 늦게 붙을 때 같은 id 의 메시지를 갱신한다 - appendMessage 는
+    // Map 으로 id 를 병합하므로 새 메시지든 갱신이든 같은 핸들러로 충분하다.
+    socket.on('chat:message:update', handleMessage);
     socket.on('chat:status', handleStatus);
     socket.on('chat:typing', handleTyping);
     socket.on('chat:error', handleError);
@@ -173,6 +176,7 @@ export function useRoomStream(roomId: string) {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('chat:message', handleMessage);
+      socket.off('chat:message:update', handleMessage);
       socket.off('chat:status', handleStatus);
       socket.off('chat:typing', handleTyping);
       socket.off('chat:error', handleError);

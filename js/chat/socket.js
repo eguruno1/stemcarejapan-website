@@ -81,6 +81,11 @@ export function connectSocket({ onReady = () => {}, onUnavailable = () => {} } =
       if (payload.message.senderType === 'customer') forget(payload.message.clientMessageId);
       upsertMessages([payload.message]);
     });
+    next.on('chat:message:update', payload => {
+      // 번역문이 늦게 붙는 경우 등. upsertMessages 는 같은 id 면 내용을 덮어쓴다.
+      if (!current() || payload.message.chatRoomId !== session.roomId) return;
+      upsertMessages([payload.message]);
+    });
     next.on('chat:message:ack', payload => {
       if (!current() || payload.message.chatRoomId !== session.roomId) return;
       forget(payload.clientMessageId);

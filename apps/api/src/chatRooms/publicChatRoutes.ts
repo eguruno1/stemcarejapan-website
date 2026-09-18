@@ -6,6 +6,7 @@ import { validateBody } from '../common/validate';
 import { prisma } from '../db';
 import { createMessageRow, listMessages } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
+import { translateMessageInBackground } from '../ai/translationPipeline';
 import { broadcastMessage, broadcastStatus, notifyOperators } from '../realtime/emitters';
 import { getIo } from '../realtime/socketServer';
 import { assertRoomOpen, authorizeVisitor, requestHandoff, startChat } from './chatRoomService';
@@ -88,6 +89,9 @@ publicChatRoutes.post(
 
     const io = getIo();
     if (io) await broadcastMessage(io, room.id, row);
+
+    // 원문을 먼저 응답한 뒤 번역을 시작한다. await 하지 않는다.
+    void translateMessageInBackground(io, row.id);
 
     res.status(201).json({ message: toMessageDTO(row, 'customer') });
   })

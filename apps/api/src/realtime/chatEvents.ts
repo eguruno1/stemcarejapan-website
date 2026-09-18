@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AppError } from '../common/errors';
 import { identityOf, isSocketAuthorized } from './authSocket';
 import { prisma } from '../db';
+import { translateMessageInBackground } from '../ai/translationPipeline';
 import { requestHandoff } from '../chatRooms/chatRoomService';
 import { createMessageRow, listMessages } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
@@ -167,6 +168,13 @@ export function registerChatEvents(io: Server, socket: Socket): void {
         clientMessageId,
         message: toMessageDTO(row, viewer)
       });
+
+      // 원문을 먼저 전달한 뒤 번역을 시작한다. await 하지 않는다 — 번역이 몇 초
+      // 걸려도 메시지 전달은 이미 끝나 있어야 한다. 운영자가 미리보기로 번역을
+      // 붙여 보내는 메시지(Task 4)는 여기서 번역하지 않는다 — 대상 언어가 반대다.
+      if (identity.kind === 'customer') {
+        void translateMessageInBackground(io, row.id);
+      }
     }, clientMessageIdOf)
   );
 
