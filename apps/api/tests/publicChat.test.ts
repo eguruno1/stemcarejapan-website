@@ -46,20 +46,27 @@ describe('POST /api/public/chat/start', () => {
   it('첫 문의 내용이 있으면 첫 메시지로 저장된다', async () => {
     const res = await request(app).post('/api/public/chat/start').send(validPayload);
 
-    const messages = await prisma.message.findMany({ where: { chatRoomId: res.body.roomId } });
-    expect(messages).toHaveLength(1);
+    // AI 고정 인사(Phase 5) 가 문의 뒤에 항상 하나 더 남는다.
+    const messages = await prisma.message.findMany({
+      where: { chatRoomId: res.body.roomId },
+      orderBy: { createdAt: 'asc' }
+    });
+    expect(messages).toHaveLength(2);
     expect(messages[0].senderType).toBe('customer');
     expect(messages[0].originalText).toBe(validPayload.message);
     expect(messages[0].visibleText).toBe(validPayload.message);
+    expect(messages[1].senderType).toBe('ai');
   });
 
-  it('첫 문의 내용이 없어도 상담방은 만들어진다', async () => {
+  it('첫 문의 내용이 없어도 상담방은 만들어지고 AI 인사가 남는다', async () => {
     const { message, ...withoutMessage } = validPayload;
 
     const res = await request(app).post('/api/public/chat/start').send(withoutMessage);
 
     expect(res.status).toBe(201);
-    expect(await prisma.message.count()).toBe(0);
+    const messages = await prisma.message.findMany({ where: { chatRoomId: res.body.roomId } });
+    expect(messages).toHaveLength(1);
+    expect(messages[0].senderType).toBe('ai');
   });
 
   it('개인정보 동의가 없으면 400 을 반환하고 아무것도 저장하지 않는다', async () => {
@@ -191,7 +198,11 @@ describe('POST /api/public/chat/:roomId/messages', () => {
 
     expect(second.status).toBe(201);
     expect(second.body.message.id).toBe(first.body.message.id);
-    expect(await prisma.message.count({ where: { chatRoomId: room.id } })).toBe(1);
+    // AI 상담 봇이 실패 시 운영자 전환 안내를 남길 수 있으므로(OPENAI_API_KEY 없음),
+    // 전체 메시지 수가 아니라 "고객 메시지가 중복 저장되지 않았는지"만 확인한다.
+    expect(
+      await prisma.message.count({ where: { chatRoomId: room.id, senderType: 'customer' } })
+    ).toBe(1);
   });
 
   it('메시지를 저장하면 상담방의 lastMessageAt 이 갱신된다', async () => {

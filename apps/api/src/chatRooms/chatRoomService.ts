@@ -4,6 +4,7 @@ import type {
   ChatRoomListItem,
   ChatRoomStatus,
   CustomerHistoryItem,
+  Language,
   ServiceType,
   StartChatRequest,
   StartChatResponse
@@ -15,10 +16,34 @@ import { createVisitorToken, hashVisitorToken } from '../auth/token';
 import { createMessage, createMessageRow, listMessages } from '../messages/messageService';
 import { toChatRoomListItem, toCustomerDTO, type RoomWithRelations } from './chatRoomMapper';
 
-export async function startChat(input: StartChatRequest): Promise<StartChatResponse> {
+/**
+ * AI 호출 없이 고정 문구로 만든다. 첫 인사는 매번 다를 필요가 없고, API 키가
+ * 없거나 장애일 때도 반드시 나가야 한다. 가입 폼에 적은 문의(firstMessage)에
+ * 대한 개별 답변은 만들지 않는다 - 이 인사말 자체가 "문의 감사합니다, 방문
+ * 시기와 인원을 알려주세요"로 응답을 유도한다.
+ */
+const GREETINGS: Record<Language, string> = {
+  ko: [
+    '안녕하세요, StemCareJapan 상담입니다.',
+    '문의해 주셔서 감사합니다. 방문 예정 시기와 인원을 알려주시면 안내가 더 정확해집니다.',
+    '정확한 비용과 예약 가능 여부는 담당자가 확인 후 안내드립니다.'
+  ].join('\n'),
+  ja: [
+    'こんにちは。StemCareJapan の相談窓口です。',
+    'お問い合わせありがとうございます。ご訪問予定の時期と人数をお知らせいただけますと、より正確にご案内できます。',
+    '正確な費用やご予約の可否は担当者が確認のうえご案内いたします。'
+  ].join('\n')
+};
+
+export interface StartChatResult extends StartChatResponse {
+  /** HTTP 라우트가 방송에 쓴다. 공개 응답 바디에는 포함하지 않는다. */
+  greeting: Message;
+}
+
+export async function startChat(input: StartChatRequest): Promise<StartChatResult> {
   const visitorToken = createVisitorToken();
 
-  const { customer, room } = await prisma.$transaction(async (tx) => {
+  const { customer, room, greeting } = await prisma.$transaction(async (tx) => {
     const customer = await tx.customer.create({
       data: {
         name: input.name.trim(),
@@ -47,14 +72,28 @@ export async function startChat(input: StartChatRequest): Promise<StartChatRespo
         text: firstMessage, originalLanguage: input.preferredLanguage, viewer: 'customer'
       }, tx);
     }
-    return { customer, room };
+
+    // AI 첫 인사는 항상 남긴다. (외부 API 에 의존하지 않는다) 문의 뒤에 저장해
+    // 인사가 항상 마지막 메시지가 되게 한다 - runBotTurn 은 "마지막이 고객
+    // 메시지일 때만" 답하므로, 이렇게 하면 가입 폼의 문의에 곧바로 AI 가
+    // 다시 끼어들지 않는다.
+    const greeting = await createMessageRow({
+      chatRoomId: room.id,
+      senderType: 'ai',
+      text: GREETINGS[input.preferredLanguage],
+      visibleText: GREETINGS[input.preferredLanguage],
+      originalLanguage: input.preferredLanguage
+    }, tx);
+
+    return { customer, room, greeting };
   });
 
   return {
     roomId: room.id,
     customerId: customer.id,
     visitorToken,
-    status: room.status as ChatRoomStatus
+    status: room.status as ChatRoomStatus,
+    greeting
   };
 }
 

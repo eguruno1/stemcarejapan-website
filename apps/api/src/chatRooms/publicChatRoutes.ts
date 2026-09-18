@@ -40,15 +40,17 @@ publicChatRoutes.post(
   '/start',
   validateBody(StartChatSchema),
   asyncHandler(async (req, res) => {
-    const result = await startChat(req.body as z.infer<typeof StartChatSchema>);
+    const { greeting, ...result } = await startChat(req.body as z.infer<typeof StartChatSchema>);
 
     const io = getIo();
-    if (io) notifyOperators(io, { roomId: result.roomId, kind: 'chat_started' });
+    if (io) {
+      notifyOperators(io, { roomId: result.roomId, kind: 'chat_started' });
+      await broadcastMessage(io, result.roomId, greeting);
+    }
 
-    // 첫 메시지가 있으면 AI 가 곧바로 응답한다. 없으면 generateBotReply 가
-    // skip 을 돌려주므로 안전하다 (AI 첫 인사는 Task 7 에서 따로 처리한다).
-    void runBotTurn(io, result.roomId);
-
+    // 인사가 항상 마지막 메시지로 저장되므로(startChat 참고) runBotTurn 은
+    // 여기서 부를 필요가 없다 - "마지막이 고객 메시지일 때만" 답하는데
+    // 이 시점의 마지막 메시지는 항상 방금 만든 인사(ai)다.
     res.status(201).json(result);
   })
 );

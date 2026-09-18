@@ -189,14 +189,27 @@ export function CustomerSidebar({
               </p>
             )}
             {room.summary.riskFlags.length > 0 && (
-              <p style={{ margin: '6px 0 0', color: 'var(--danger)' }}>
-                주의: {room.summary.riskFlags.join(', ')}
-              </p>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+                {room.summary.riskFlags.map((flag) => (
+                  <span
+                    key={flag}
+                    style={{
+                      background: '#fbeaea',
+                      color: '#8c2020',
+                      borderRadius: 4,
+                      padding: '1px 6px',
+                      fontSize: 11
+                    }}
+                  >
+                    {flag}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         ) : (
           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-            아직 요약이 없습니다. (Phase 5에서 자동 생성됩니다)
+            아직 요약이 없습니다. 운영자에게 전환되면 자동으로 만들어집니다.
           </p>
         )}
       </Section>
