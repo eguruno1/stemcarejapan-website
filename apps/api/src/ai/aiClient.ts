@@ -8,6 +8,8 @@ export class AiUnavailableError extends Error {
   }
 }
 
+export class AiConfigurationError extends AiUnavailableError {}
+
 export interface ModelCallInput {
   model: string;
   system: string;
@@ -34,7 +36,7 @@ let client: OpenAI | null = null;
 
 function getClient(): OpenAI {
   if (!config.openaiApiKey) {
-    throw new AiUnavailableError('OPENAI_API_KEY 가 설정되지 않았습니다.');
+    throw new AiConfigurationError('OPENAI_API_KEY 가 설정되지 않았습니다.');
   }
   client ??= new OpenAI({ apiKey: config.openaiApiKey });
   return client;

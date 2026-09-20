@@ -76,6 +76,12 @@ export function mountWidget({ defaultService = '', defaultLanguage = 'ko' } = {}
       <div class="consult-chat-stage" data-stage="form">
         <p class="consult-chat-intro" data-i18n="intro"></p>
         <form class="consult-chat-form" novalidate>
+          <label><span data-i18n="field.mode"></span>
+            <select name="consultationMode">
+              <option value="assisted" data-i18n="mode.assisted"></option>
+              <option value="human" data-i18n="mode.human"></option>
+            </select>
+          </label>
           <label>
             <span data-i18n="field.service"></span>
             <select name="serviceType">${serviceOptionsHtml(defaultService)}</select>
@@ -318,6 +324,7 @@ export function renderState(elements, state) {
 
   // 상태 표시줄: 상담 상태 + (입력 중이면 그것만, 아니면 담당자 접속 여부)
   const parts = [t(`status.${status}`)];
+  if (state.room?.consultationMode === 'human') parts.push(t('mode.human'));
   if (state.peerTyping) {
     parts.push(t('peer.typing'));
   } else if (state.presence.operatorOnline) {

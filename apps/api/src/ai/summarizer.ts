@@ -1,3 +1,4 @@
+import { getChatSettings, lockChatConfiguration } from '../settings/chatSettings';
 import type { ChatSummary } from '@prisma/client';
 import { z } from 'zod';
 import { config } from '../config';
@@ -30,6 +31,9 @@ function extractJson(raw: string): unknown {
  */
 export async function generateSummary(roomId: string): Promise<ChatSummary | null> {
   try {
+    const settings = await getChatSettings();
+    const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
+    if (!settings.aiEnabled || !room || room.consultationMode === 'human') return null;
     const messages = await prisma.message.findMany({
       where: { chatRoomId: roomId, senderType: { in: ['customer', 'ai', 'operator'] } },
       orderBy: { createdAt: 'desc' },
@@ -61,7 +65,10 @@ export async function generateSummary(roomId: string): Promise<ChatSummary | nul
     }
 
     return await prisma.$transaction(async tx => {
+      await lockChatConfiguration(tx);
       await lockRoom(tx, roomId);
+      const current = await getChatSettings(tx);
+      if (!current.aiEnabled || current.revision !== settings.revision) return null;
       if (await tx.message.count({ where: { id: { in: messages.map(m => m.id) } } }) !== messages.length) return null;
       return tx.chatSummary.create({
         data: {

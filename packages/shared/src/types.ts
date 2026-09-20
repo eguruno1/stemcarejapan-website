@@ -11,6 +11,7 @@ import type {
 
 /** POST /api/public/chat/start 요청 본문 */
 export interface StartChatRequest {
+  consultationMode?: 'assisted' | 'human';
   name: string;
   phone: string;
   email?: string;
@@ -90,6 +91,10 @@ export interface OperatorNoteDTO {
 
 /** 운영자 상담 상세 화면이 한 번에 받는 묶음 */
 export interface ChatRoomDetail {
+  consultationMode?: 'assisted' | 'human';
+  translationEnabled?: boolean;
+  roomTranslationEnabled?: boolean;
+  translationRevision?: number;
   id: string;
   status: ChatRoomStatus;
   serviceType: ServiceType;
@@ -155,4 +160,11 @@ export interface ChatFeedbackDTO {
   rating: number;
   comment: string | null;
   createdAt: string;
+}
+
+export interface ChatSettingsDTO {
+  translationProvider: 'external' | 'ollama';
+  translationEnabled: boolean;
+  aiEnabled: boolean;
+  revision: number;
 }

@@ -22,6 +22,9 @@ export const config = {
     process.env.WEBSITE_ORIGIN ?? 'http://localhost:8080',
     process.env.ADMIN_ORIGIN ?? 'http://localhost:3100'
   ],
+  ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434',
+  ollamaModel: process.env.OLLAMA_MODEL ?? 'qwen3:8b',
+  ollamaTimeoutMs: Math.min(300_000, Math.max(1000, Number(process.env.OLLAMA_TIMEOUT_MS) || 120_000)),
   openaiApiKey: process.env.OPENAI_API_KEY ?? '',
   aiModel: process.env.AI_MODEL ?? 'gpt-5-mini',
   translationModel: process.env.TRANSLATION_MODEL ?? 'gpt-5-mini'

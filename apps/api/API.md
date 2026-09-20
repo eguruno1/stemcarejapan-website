@@ -172,3 +172,18 @@ REST를 대체하지 않고 얹는다. 저장 로직은 여전히 `createMessage
 - 최초 문의의 위험·운영자 요청 패턴에 따라 `/start`가 waiting을 반환할 수 있다. 고정 인사와 초기 문의 번역은 유지한다.
 - 운영 지표의 todayStarted는 한국 날짜 기준. unansweredOver10Min은 마지막 운영자 답변 뒤 고객 메시지가 10분 이상 남은 방 수이며 시스템 안내로 타이머를 초기화하지 않는다.
 - DB 접근 장애 시 인증/집계 자체가 실패할 수 있으므로 metrics 응답의 dbOk만 외부 가용성 모니터로 사용하지 않는다.
+
+
+## 상담 방식·번역 설정 (2026-09-20)
+
+- `POST /api/public/chat/start`: `consultationMode`는 `assisted`(생략 시 기존 동작) 또는 `human`. human은 waiting으로 생성되고 AI 인사·응답·요약을 실행하지 않는다. 번역은 초기 비활성화이며 방별 선택으로 켤 수 있다. 고객 조회에 consultationMode가 포함된다.
+- 관리자 상세 응답에 `consultationMode`, 실효 `translationEnabled`를 추가한다. 실효값은 전체 설정과 방별 translationEnabled가 모두 켜져 있을 때 true다. roomTranslationEnabled와 translationRevision도 반환한다. 운영자 원문 전송과 고객 소켓/HTTP 메시지 모두 동일 규칙을 적용한다.
+- `GET /api/admin/settings/chat`: 인증된 운영자만 공용 settings, 모델명, externalConfigured를 조회한다. 비밀 키·Ollama 주소는 반환하지 않는다.
+- `PUT /api/admin/settings/chat`: `{translationProvider: "external"|"ollama", translationEnabled: boolean, aiEnabled: boolean, revision: number}`. GET으로 읽은 revision을 전달한다. 동시 수정은 409 SETTINGS_CHANGED. DB에 영속 저장한다.
+- `POST /api/admin/settings/chat/test-translation`: `{provider: "external"|"ollama"}`. 고정 일→한 예제만 번역하며 result.status, text/model(성공 시), elapsedMs를 반환한다. 연결 확인은 설정을 저장하지 않는다.
+- 번역 미리보기에서 번역이 꺼져 있으면 `translationEnabled: false`와 원문을 반환하며 모델을 호출하지 않는다. UI는 원문 전송을 재확인한다. 이미 열린 번역 초안의 전송 중 설정이 꺼졌으면 409 TRANSLATION_DISABLED.
+- Ollama: API 서버에서 `/api/chat`, `stream:false`, `think:false`로 호출하며 추론 내용·빈/잘린 응답은 고객에게 전송하지 않는다. 로컬 실패 시 외부 자동 폴백 없음. 사용자 입력으로 URL/모델을 지정할 수 없다.
+
+- `PATCH /api/admin/chat-rooms/:roomId/translation`: 인증된 운영자가 `{enabled: boolean, revision: number}`로 방별 상호 번역을 선택한다. stale revision은 409. 켜면 최근 미번역 고객 메시지 20개를 백그라운드 번역하고 상세 room을 반환한다. AI 응답·요약 모드는 변경하지 않는다.
+- 번역 결과 저장 전 공용 revision과 방별 translationRevision을 재검사한다. 설정을 껐다 켜도 이전 작업의 결과를 저장하지 않는다. 번역이 꺼진 상태의 기존 번역 초안 전송은 TRANSLATION_DISABLED로 거절하며 원문으로 임의 대체하지 않는다.
+- 관리자 표시 선택(원문+번역/원문만/번역 우선)은 화면 표시만 바꾸며 저장 데이터·고객에게 전달한 메시지는 변경하지 않는다. 이미 저장된 번역은 번역 기능을 꺼도 남는다.

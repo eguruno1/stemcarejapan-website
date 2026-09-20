@@ -16,6 +16,7 @@ import { getIo } from '../realtime/socketServer';
 import { assertRoomOpen, authorizeVisitor, requestHandoff, startChat } from './chatRoomService';
 
 const StartChatSchema = z.object({
+  consultationMode: z.enum(['assisted', 'human']).default('assisted'),
   name: z.string().trim().min(1, '성함을 입력해주세요.').max(50),
   phone: z.string().trim().min(5, '연락처를 입력해주세요.').max(30),
   email: z.string().email('올바른 이메일 형식이 아닙니다.').optional().or(z.literal('')),
@@ -74,6 +75,7 @@ publicChatRoutes.get(
     // 고객 화면에는 전화번호/이메일 같은 개인정보를 다시 돌려주지 않는다.
     res.json({
       roomId: room.id,
+      consultationMode: room.consultationMode,
       status: room.status,
       serviceType: room.serviceType,
       customerName: customer.name,

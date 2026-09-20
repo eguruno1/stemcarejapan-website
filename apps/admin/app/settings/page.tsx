@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import { ChatSettingsPanel } from '@/components/ChatSettingsPanel';
 import { Button } from '@/components/ui/Button';
 
 export default function SettingsPage() {
@@ -45,6 +46,8 @@ export default function SettingsPage() {
         비밀번호 변경과 운영자 추가는 아직 화면으로 제공하지 않습니다. 시드 스크립트나 DB 작업으로
         처리합니다.
       </p>
+
+      <ChatSettingsPanel />
 
       {error && <p role="alert">{error}</p>}
       <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>

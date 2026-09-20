@@ -1,3 +1,4 @@
+import { getChatSettings } from '../settings/chatSettings';
 import type { Message, Prisma } from '@prisma/client';
 import type { DetectedLanguage, MessageDTO, SenderType } from '@stemcare/shared';
 import { prisma } from '../db';
@@ -43,6 +44,11 @@ export async function createMessageRow(input: CreateMessageInput, tx?: Prisma.Tr
       }
       return existing;
     }
+  }
+  // AI 상담 여부와 번역 여부는 독립적이다. 오래된 번역 초안을 원문으로 바꿔 몰래 전송하지 않는다.
+  if (input.senderType === 'operator' && input.translatedText &&
+    (!room.translationEnabled || !(await getChatSettings(tx)).translationEnabled)) {
+    throw conflict('TRANSLATION_DISABLED', '상호 번역이 꺼졌습니다. 미리보기를 닫고 원문 전송 여부를 확인해주세요.');
   }
   const message = await tx.message.create({ data: {
     chatRoomId: input.chatRoomId,

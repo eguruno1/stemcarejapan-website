@@ -80,13 +80,14 @@ export default function ChatRoomPage({ params }: { params: Promise<{ roomId: str
           )}
         </header>
 
-        <ChatThread messages={room.messages} roomId={room.id} onRetranslate={handleRetranslate} />
+        <ChatThread messages={room.messages} roomId={room.id} onRetranslate={handleRetranslate} translationEnabled={room.translationEnabled} />
 
         <ChatComposer
           key={room.id}
           roomId={room.id}
           disabled={room.status === 'closed'}
           customerLanguage={room.customer.preferredLanguage}
+          translationEnabled={room.translationEnabled}
           onSent={appendMessage}
         />
       </section>

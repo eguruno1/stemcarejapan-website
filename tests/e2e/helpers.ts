@@ -16,7 +16,7 @@ export const WEBSITE_URL = 'http://127.0.0.1:18081';
  */
 export async function startCustomerChat(
   page: Page,
-  options: { language?: 'ko' | 'ja'; message?: string; name?: string } = {}
+  options: { language?: 'ko' | 'ja'; message?: string; name?: string; mode?: 'assisted' | 'human' } = {}
 ): Promise<void> {
   await page.addInitScript((api) => {
     (window as Window & { STEMCARE_CHAT_API_URL?: string }).STEMCARE_CHAT_API_URL = api;
@@ -30,6 +30,7 @@ export async function startCustomerChat(
   const widget = page.locator('.consult-chat');
   await widget.locator('.consult-chat-toggle').click();
   await widget.locator('select[name="serviceType"]').selectOption('korea_travel');
+  await widget.locator('select[name="consultationMode"]').selectOption(options.mode ?? 'assisted');
   await widget.locator('input[name="name"]').fill(options.name ?? 'E2E 고객');
   await widget.locator('input[name="phone"]').fill('010-1234-5678');
   await widget.locator('select[name="preferredLanguage"]').selectOption(options.language ?? 'ja');

@@ -1,10 +1,12 @@
+import { ChatThread } from '@/components/chat/ChatThread';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { CustomerSidebar } from '@/components/chat/CustomerSidebar';
-import { sendOperatorMessage, fetchCustomerHistory, previewTranslation } from '@/lib/api';
+import { changeRoomTranslation, sendOperatorMessage, fetchCustomerHistory, previewTranslation } from '@/lib/api';
 import type { ChatRoomDetail, MessageDTO } from '@stemcare/shared';
 vi.mock('@/lib/api', () => ({
+  changeRoomTranslation: vi.fn(),
   sendOperatorMessage: vi.fn(),
   fetchCustomerHistory: vi.fn(),
   previewTranslation: vi.fn()
@@ -103,4 +105,56 @@ it('번역 미리보기가 열린 상태에서 상담이 종료되면 전송을 
   expect(screen.getByText('이대로 전송')).toBeDisabled();
   fireEvent.click(screen.getByText('이대로 전송'));
   expect(sendOperatorMessage).not.toHaveBeenCalled();
+});
+
+it('1:1 상담은 고객 언어가 달라도 번역 없이 원문을 전송한다', async () => {
+  vi.mocked(sendOperatorMessage).mockResolvedValue({ id: 'human' } as MessageDTO);
+  render(<ChatComposer roomId="human" disabled={false} translationEnabled={false} customerLanguage="ja" onSent={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText('답변 입력'), { target: { value: '직접 답변합니다' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  await waitFor(() => expect(sendOperatorMessage).toHaveBeenCalled());
+  expect(previewTranslation).not.toHaveBeenCalled();
+  expect(vi.mocked(sendOperatorMessage).mock.calls[0][1]).toMatchObject({ originalText: '직접 답변합니다', originalLanguage: 'ko' });
+  expect(vi.mocked(sendOperatorMessage).mock.calls[0][1].translatedText).toBeUndefined();
+});
+
+it('미리보기 요청 중 번역이 꺼지면 원문을 자동 전송하지 않고 다시 확인받는다', async () => {
+  vi.mocked(previewTranslation).mockResolvedValue({ translatedText: '원문', translationEnabled: false });
+  vi.mocked(sendOperatorMessage).mockResolvedValue({ id: 'original' } as MessageDTO);
+  render(<ChatComposer roomId="a" disabled={false} customerLanguage="ja" onSent={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText('답변 입력'), { target: { value: '원문' } });
+  fireEvent.click(screen.getByRole('button', { name: '번역 확인' }));
+  await screen.findByText('자동 번역이 꺼졌습니다. 원문 전송 여부를 확인한 뒤 전송 버튼을 다시 눌러주세요.');
+  expect(sendOperatorMessage).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  await waitFor(() => expect(sendOperatorMessage).toHaveBeenCalledTimes(1));
+});
+
+
+it('대화 표시를 원문·번역 중 선택하되 원문 데이터는 유지한다', () => {
+  const message = { id: 'translated', senderType: 'customer', originalText: '明日です', translatedText: '내일입니다', originalLanguage: 'ja', translatedLanguage: 'ko', translationStatus: 'done', createdAt: new Date().toISOString() } as MessageDTO;
+  render(<ChatThread roomId="translation-view" messages={[message]} />);
+  expect(screen.getByText('明日です')).toBeInTheDocument();
+  expect(screen.getByText('내일입니다')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('대화 표시'), { target: { value: 'original' } });
+  expect(screen.getByText('明日です')).toBeInTheDocument();
+  expect(screen.queryByText('내일입니다')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('대화 표시'), { target: { value: 'translated' } });
+  expect(screen.queryByText('明日です')).not.toBeInTheDocument();
+  expect(screen.getByText('내일입니다')).toBeInTheDocument();
+});
+
+
+it('상호 번역 선택을 즉시 표시하고 저장 실패 시 원래 선택으로 되돌린다', async () => {
+  vi.mocked(fetchCustomerHistory).mockResolvedValue([]);
+  let reject!: (error: Error) => void;
+  vi.mocked(changeRoomTranslation).mockImplementation(() => new Promise((_resolve, fail) => { reject = fail; }));
+  const room = { id: 'human', status: 'active', consultationMode: 'human', roomTranslationEnabled: false, translationEnabled: false, translationRevision: 0, serviceType: 'korea_travel', assignedOperatorId: null, createdAt: new Date().toISOString(), customer: { name: '고객', phone: '12345', preferredLanguage: 'ja' }, notes: [], summary: null } as unknown as ChatRoomDetail;
+  render(<CustomerSidebar room={room} onChanged={vi.fn()} onNoteCreated={vi.fn()} />);
+  const toggle = screen.getByLabelText('이 상담 상호 번역 사용');
+  fireEvent.click(toggle);
+  expect(toggle).toBeChecked(); expect(toggle).toBeDisabled();
+  await act(async () => reject(new Error('설정 저장 실패')));
+  expect(toggle).not.toBeChecked(); expect(toggle).not.toBeDisabled();
+  expect(screen.getByRole('alert')).toHaveTextContent('설정 저장 실패');
 });

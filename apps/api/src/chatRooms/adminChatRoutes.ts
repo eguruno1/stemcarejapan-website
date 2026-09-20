@@ -1,3 +1,7 @@
+import { lockChatConfiguration } from '../settings/chatSettings';
+import { lockRoom } from './roomLock';
+import { trackBackground } from '../common/background';
+import { conflict } from '../common/errors';
 import { Router } from 'express';
 import { z } from 'zod';
 import { CHAT_ROOM_STATUSES, LANGUAGES } from '@stemcare/shared';
@@ -9,13 +13,14 @@ import { prisma } from '../db';
 import { createMessageRow } from '../messages/messageService';
 import { toMessageDTO } from '../messages/messageMapper';
 import { createNote } from '../notes/noteService';
-import { retryTranslation } from '../ai/translationPipeline';
+import { retryTranslation, translateRecentMessages } from '../ai/translationPipeline';
 import { broadcastMessage, broadcastStatus } from '../realtime/emitters';
 import { getIo } from '../realtime/socketServer';
 import {
   assertRoomOpen,
   assignRoom,
   getRoomDetailAndMarkRead,
+  getRoomDetail,
   listCustomerHistory,
   listRooms,
   updateRoomStatus
@@ -175,5 +180,21 @@ adminChatRoutes.post(
 
     const updated = await prisma.message.findUniqueOrThrow({ where: { id: message.id } });
     res.json({ message: toMessageDTO(updated, 'operator') });
+  })
+);
+
+
+adminChatRoutes.patch('/:roomId/translation',
+  validateBody(z.object({ enabled: z.boolean(), revision: z.number().int().nonnegative() }).strict()),
+  asyncHandler(async (req, res) => {
+    await prisma.$transaction(async tx => {
+      await lockChatConfiguration(tx);
+      const room = await lockRoom(tx, req.params.roomId);
+      if (room.translationRevision !== req.body.revision) throw conflict('SETTINGS_CHANGED', '다른 운영자가 상담 번역 설정을 변경했습니다. 새로고침 후 다시 시도해주세요.');
+      await tx.chatRoom.update({ where: { id: room.id }, data: { translationEnabled: req.body.enabled, translationRevision: { increment: 1 } } });
+    });
+    const room = await getRoomDetail(req.params.roomId);
+    if (room.translationEnabled) trackBackground(translateRecentMessages(getIo(), room.id));
+    res.json({ room });
   })
 );

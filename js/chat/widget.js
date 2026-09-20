@@ -183,6 +183,7 @@ function bindStartForm(elements) {
         email: email || undefined,
         preferredLanguage,
         serviceType,
+        consultationMode: String(data.get('consultationMode') ?? 'assisted'),
         sourcePage: window.location.pathname,
         message: message || undefined,
         privacyAgreed: true

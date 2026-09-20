@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Language, MessageDTO } from '@stemcare/shared';
 import { previewTranslation, sendOperatorMessage } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
@@ -20,11 +20,13 @@ export function ChatComposer({
   roomId,
   disabled,
   customerLanguage,
+  translationEnabled = true,
   onSent
 }: {
   roomId: string;
   disabled: boolean;
   customerLanguage: Language;
+  translationEnabled?: boolean;
   onSent: (message: MessageDTO) => void;
 }) {
   // 재전송 시 같은 clientMessageId 를 재사용해 중복 메시지를 막는다.
@@ -41,7 +43,12 @@ export function ChatComposer({
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
 
-  const needsTranslation = language !== customerLanguage;
+  const translationAllowed = useRef(translationEnabled);
+  translationAllowed.current = translationEnabled;
+  useEffect(() => { if (!translationEnabled) { setDraft(null); setDraftError(null); } }, [translationEnabled]);
+  const [translationBypassed, setTranslationBypassed] = useState(false);
+  useEffect(() => { setTranslationBypassed(false); }, [translationEnabled]);
+  const needsTranslation = translationEnabled && !translationBypassed && language !== customerLanguage;
   const locked = disabled || draft !== null || previewLoading;
 
   async function sendMessage(
@@ -100,12 +107,18 @@ export function ChatComposer({
     setError(null);
     setPreviewLoading(true);
     try {
-      const { translatedText } = await previewTranslation({
+      const { translatedText, translationEnabled: enabled } = await previewTranslation({
         roomId,
         text: trimmed,
         sourceLanguage: language,
         targetLanguage: customerLanguage
       });
+      if (enabled === false) {
+        setTranslationBypassed(true);
+        setError('자동 번역이 꺼졌습니다. 원문 전송 여부를 확인한 뒤 전송 버튼을 다시 눌러주세요.');
+        return;
+      }
+      if (!translationAllowed.current) return;
       setDraft({
         originalText: trimmed,
         originalLanguage: language,
@@ -114,6 +127,7 @@ export function ChatComposer({
         edited: false
       });
     } catch (err) {
+      if (!translationAllowed.current) return;
       // 번역이 실패해도 운영자가 직접 번역문을 써서 보낼 수 있도록 빈 미리보기를 연다.
       setDraft({
         originalText: trimmed,
@@ -202,6 +216,7 @@ export function ChatComposer({
         </p>
       )}
 
+      {(!translationEnabled || translationBypassed) && <p style={{ fontSize: 12 }}>자동 번역 없이 원문으로 전송합니다.</p>}
       {!draft && needsTranslation && !disabled && (
         <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 6px' }}>
           고객 선호 언어({languageLabel(customerLanguage)})로 번역해 확인한 뒤 전송됩니다.

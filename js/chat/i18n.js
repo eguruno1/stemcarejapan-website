@@ -7,6 +7,9 @@ export function getLang() {
 
 const DICT = {
   ko: {
+    'field.mode': '상담 방식',
+    'mode.assisted': 'AI·번역 지원 상담',
+    'mode.human': '담당자 1:1 상담 (번역은 담당자와 선택)',
     'open.label': '무료 상담 채팅 열기',
     'close.label': '무료 상담 채팅 닫기',
     'badge': '무료 상담',
@@ -79,6 +82,9 @@ const DICT = {
     'feedback.skip': '건너뛰기'
   },
   ja: {
+    'field.mode': '相談方法',
+    'mode.assisted': 'AI・翻訳サポート付き相談',
+    'mode.human': '担当者と1対1（翻訳は担当者と選択）',
     'open.label': '無料相談チャットを開く',
     'close.label': '無料相談チャットを閉じる',
     'badge': '無料相談',

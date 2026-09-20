@@ -2,6 +2,7 @@ import { prisma } from '../../src/db';
 
 const TRUNCATE_SQL = `
   TRUNCATE TABLE
+    "chat_settings",
     "operator_notes",
     "chat_summaries",
     "messages",

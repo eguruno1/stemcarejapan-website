@@ -1,3 +1,5 @@
+import { lockRoom } from '../chatRooms/roomLock';
+import { getChatSettings, lockChatConfiguration } from '../settings/chatSettings';
 import type { DetectedLanguage, Language } from '@stemcare/shared';
 import type { Server } from 'socket.io';
 import { prisma } from '../db';
@@ -33,7 +35,9 @@ async function translateMessage(
       include: { chatRoom: { include: { customer: true } } }
     });
 
-    if (!message) return;
+    if (!message || !message.chatRoom.translationEnabled) return;
+    const settings = await getChatSettings();
+    if (!settings.translationEnabled) return;
 
     // 이 파이프라인은 고객 원문을 운영자 한국어로 번역하는 경로다.
     if (message.senderType !== 'customer') return;
@@ -60,18 +64,20 @@ async function translateMessage(
 
     const result = await translate({ text: message.originalText, source, target });
 
-    const updated = await prisma.message.update({
-      where: { id: messageId },
-      data:
-        result.status === 'done'
-          ? {
-              translatedLanguage: target,
-              translatedText: result.text,
-              translationStatus: 'done'
-            }
-          : result.status === 'skipped'
-            ? { translationStatus: 'none' }
-            : { translationStatus: 'failed', translatedText: null }
+    const updated = await prisma.$transaction(async tx => {
+      await lockChatConfiguration(tx);
+      const current = await getChatSettings(tx);
+      const room = await lockRoom(tx, message.chatRoomId);
+      if (current.revision !== settings.revision || !room.translationEnabled || room.translationRevision !== message.chatRoom.translationRevision) {
+        return tx.message.update({ where: { id: messageId }, data: { translationStatus: 'none' } });
+      }
+      return tx.message.update({
+        where: { id: messageId },
+        data: result.status === 'done'
+          ? { translatedLanguage: target, translatedText: result.text, translationStatus: 'done' }
+          : result.status === 'skipped' ? { translationStatus: 'none' }
+          : { translationStatus: 'failed', translatedText: null }
+      });
     });
 
     if (io) await broadcastMessageUpdate(io, message.chatRoomId, updated);
@@ -97,4 +103,13 @@ export async function retryTranslation(io: Server | null, messageId: string): Pr
   if (!message || message.senderType !== 'customer' || ['done', 'edited'].includes(message.translationStatus)) return;
   await prisma.message.update({ where: { id: messageId }, data: { translationStatus: 'none' } });
   await translateMessageInBackground(io, messageId);
+}
+
+
+/** 번역을 켜면 최근 미번역 고객 메시지 20개도 순서대로 처리한다. */
+export async function translateRecentMessages(io: Server | null, roomId: string): Promise<void> {
+  try {
+    const rows = await prisma.message.findMany({ where: { chatRoomId: roomId, senderType: 'customer', translationStatus: { in: ['none', 'failed'] } }, orderBy: { createdAt: 'desc' }, take: 20 });
+    for (const row of rows) await translateMessageInBackground(io, row.id);
+  } catch (err) { logError(err, 'translation_backfill_failed'); }
 }

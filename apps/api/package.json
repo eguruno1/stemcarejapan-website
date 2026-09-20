@@ -16,7 +16,8 @@
     "db:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
     "ops:retention": "dotenv -e ../../.env -- tsx scripts/runRetention.ts",
     "db:push:test": "node scripts/push-test-db.cjs",
-    "pretest": "npm run db:push:test"
+    "pretest": "npm run db:push:test",
+    "ops:check-ollama": "tsx scripts/checkOllama.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",

@@ -30,6 +30,9 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       AI_MODEL: ${AI_MODEL}
       TRANSLATION_MODEL: ${TRANSLATION_MODEL}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+      OLLAMA_TIMEOUT_MS: ${OLLAMA_TIMEOUT_MS:-120000}
       WEBSITE_ORIGIN: https://${DOMAIN}
       ADMIN_ORIGIN: https://${DOMAIN}
       # 서버 시작에는 필요 없지만, "docker compose exec api ..." 로 시드

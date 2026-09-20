@@ -1,3 +1,4 @@
+import { getChatSettings, lockChatConfiguration } from '../settings/chatSettings';
 import { shouldHandoff } from '../ai/handoffDetector';
 import type { ChatRoom, Message, Prisma } from '@prisma/client';
 import type {
@@ -45,6 +46,12 @@ export async function startChat(input: StartChatRequest): Promise<StartChatResul
   const visitorToken = createVisitorToken();
 
   const { customer, room, greeting } = await prisma.$transaction(async (tx) => {
+    await lockChatConfiguration(tx);
+    const settings = await getChatSettings(tx);
+    const human = input.consultationMode === 'human';
+    const aiEnabled = !human && settings.aiEnabled;
+    const greetingText = aiEnabled ? GREETINGS[input.preferredLanguage] : input.preferredLanguage === 'ja' ? '担当者との相談を受け付けました。確認までお待ちください。' : '담당자 상담이 접수되었습니다. 확인까지 잠시 기다려주세요.';
+
     const customer = await tx.customer.create({
       data: {
         name: input.name.trim(),
@@ -60,7 +67,9 @@ export async function startChat(input: StartChatRequest): Promise<StartChatResul
       data: {
         customerId: customer.id,
         serviceType: input.serviceType,
-        status: 'bot',
+        status: aiEnabled ? 'bot' : 'waiting',
+        consultationMode: human ? 'human' : 'assisted',
+        translationEnabled: !human,
         sourcePage: input.sourcePage ?? null,
         visitorTokenHash: hashVisitorToken(visitorToken)
       }
@@ -80,13 +89,13 @@ export async function startChat(input: StartChatRequest): Promise<StartChatResul
     // 다시 끼어들지 않는다.
     const greeting = await createMessageRow({
       chatRoomId: room.id,
-      senderType: 'ai',
-      text: GREETINGS[input.preferredLanguage],
-      visibleText: GREETINGS[input.preferredLanguage],
+      senderType: aiEnabled ? 'ai' : 'system',
+      text: greetingText,
+      visibleText: greetingText,
       originalLanguage: input.preferredLanguage
     }, tx);
 
-    if (firstMessage && shouldHandoff({ text: firstMessage, unansweredCount: 0 }).required) {
+    if (aiEnabled && firstMessage && shouldHandoff({ text: firstMessage, unansweredCount: 0 }).required) {
       const waiting = await tx.chatRoom.update({ where: { id: room.id }, data: { status: 'waiting' } });
       await createMessageRow({ chatRoomId: room.id, senderType: 'system', originalLanguage: input.preferredLanguage,
         text: input.preferredLanguage === 'ja' ? '担当者におつなぎいたします。少々お待ちください。' : '담당자에게 연결해 드리겠습니다. 잠시만 기다려주세요.' }, tx);
@@ -195,6 +204,10 @@ export async function getRoomDetail(roomId: string, db: Prisma.TransactionClient
 
   return {
     id: room.id,
+    consultationMode: room.consultationMode as 'assisted' | 'human',
+    translationEnabled: room.translationEnabled && (await getChatSettings(db)).translationEnabled,
+    roomTranslationEnabled: room.translationEnabled,
+    translationRevision: room.translationRevision,
     status: room.status as ChatRoomStatus,
     serviceType: room.serviceType as ServiceType,
     sourcePage: room.sourcePage,

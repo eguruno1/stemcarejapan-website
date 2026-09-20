@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { ChatRoomDetail, ChatRoomStatus, CustomerHistoryItem, OperatorNoteDTO } from '@stemcare/shared';
-import { assignRoom, changeStatus, createNote, fetchCustomerHistory } from '@/lib/api';
+import { changeRoomTranslation, assignRoom, changeStatus, createNote, fetchCustomerHistory } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { formatDateTime } from '@/lib/format';
@@ -38,6 +38,7 @@ export function CustomerSidebar({
 }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [translationSelection, setTranslationSelection] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [history, setHistory] = useState<CustomerHistoryItem[] | null>(null);
@@ -127,7 +128,24 @@ export function CustomerSidebar({
         )}
       </Section>
 
+      <Section title="상호 번역">
+        <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" style={{ width: 'auto', margin: 0 }} aria-label="이 상담 상호 번역 사용" disabled={busy}
+            checked={translationSelection ?? room.roomTranslationEnabled ?? room.translationEnabled ?? true}
+            onChange={e => {
+              const enabled = e.target.checked;
+              setTranslationSelection(enabled);
+              void run(async () => onChanged(await changeRoomTranslation(room.id, enabled, room.translationRevision ?? 0)))
+                .finally(() => setTranslationSelection(null));
+            }} />
+          이 상담 상호 번역 사용
+        </label>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>일본어 고객 문의는 한국어로, 한국어 답변은 고객의 선호 언어로 번역합니다. 전송 전 번역문을 수정할 수 있습니다. AI 자동 응답과는 별개입니다.</p>
+        {(room.roomTranslationEnabled && !room.translationEnabled) && <p role="status" style={{ fontSize: 11 }}>전체 자동 번역이 꺼져 있습니다. 운영자 설정에서 먼저 켜주세요.</p>}
+        <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>켜면 최근 미번역 고객 메시지 20개도 번역합니다. 더 오래된 메시지는 「한국어로 번역」을 누르세요. 끄더라도 이미 저장된 번역은 남습니다.</p>
+      </Section>
       <Section title="고객 정보">
+        <Row label="상담 방식" value={room.consultationMode === 'human' ? '담당자 1:1 (AI 응답 없음)' : 'AI·번역 지원'} />
         <Row label="이름" value={room.customer.name} />
         <Row label="연락처" value={room.customer.phone} />
         <Row label="이메일" value={room.customer.email ?? '-'} />
@@ -209,7 +227,7 @@ export function CustomerSidebar({
           </div>
         ) : (
           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-            아직 요약이 없습니다. 운영자에게 전환되면 자동으로 만들어집니다.
+            {room.consultationMode === 'human' ? '1:1 상담은 AI 요약을 생성하지 않습니다.' : '아직 요약이 없습니다. AI 기능이 켜져 있으면 운영자 전환 시 생성을 시도합니다.'}
           </p>
         )}
       </Section>

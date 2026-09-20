@@ -7,7 +7,8 @@ import type {
   MessageDTO,
   OperatorDTO,
   OperatorNoteDTO,
-  OpsMetrics
+  OpsMetrics,
+  ChatSettingsDTO
 } from '@stemcare/shared';
 import { API_URL } from './env';
 
@@ -158,8 +159,8 @@ export async function previewTranslation(input: {
   text: string;
   sourceLanguage: Language;
   targetLanguage: Language;
-}): Promise<{ translatedText: string }> {
-  return request<{ translatedText: string }>('/api/admin/translate/preview', {
+}): Promise<{ translatedText: string; translationEnabled?: boolean }> {
+  return request<{ translatedText: string; translationEnabled?: boolean }>('/api/admin/translate/preview', {
     method: 'POST',
     body: input
   });
@@ -193,4 +194,19 @@ export async function fetchCustomerHistory(roomId: string): Promise<CustomerHist
 export async function fetchMetrics(): Promise<OpsMetrics> {
   const res = await request<{ metrics: OpsMetrics }>('/api/admin/ops/metrics');
   return res.metrics;
+}
+
+
+export function fetchChatSettings() {
+  return request<{ settings: ChatSettingsDTO; models: { external: string; ollama: string }; externalConfigured: boolean }>('/api/admin/settings/chat');
+}
+export async function updateChatSettings(settings: ChatSettingsDTO) {
+  return (await request<{ settings: ChatSettingsDTO }>('/api/admin/settings/chat', { method: 'PUT', body: settings })).settings;
+}
+export function testTranslationProvider(provider: ChatSettingsDTO['translationProvider']) {
+  return request<{ result: { status: string; text?: string; model?: string }; elapsedMs: number; message?: string }>('/api/admin/settings/chat/test-translation', { method: 'POST', body: { provider } });
+}
+
+export async function changeRoomTranslation(roomId: string, enabled: boolean, revision: number): Promise<ChatRoomDetail> {
+  return (await request<{ room: ChatRoomDetail }>(`/api/admin/chat-rooms/${encodeURIComponent(roomId)}/translation`, { method: 'PATCH', body: { enabled, revision } })).room;
 }

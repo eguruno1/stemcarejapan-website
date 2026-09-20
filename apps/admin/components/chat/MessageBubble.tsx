@@ -14,9 +14,11 @@ const TRANSLATION_HINTS: Record<TranslationStatus, string | null> = {
 
 export function MessageBubble({
   message,
-  onRetranslate
+  onRetranslate,
+  view = 'both'
 }: {
   message: MessageDTO;
+  view?: 'both' | 'original' | 'translated';
   onRetranslate?: (messageId: string) => void;
 }) {
   // 운영자 화면 기준: 고객/AI 는 왼쪽, 운영자(나) 는 오른쪽
@@ -52,11 +54,11 @@ export function MessageBubble({
         }}
       >
         {/* 원문 */}
-        <div>{message.originalText}</div>
+        {(view !== 'translated' || !message.translatedText) && <div>{message.originalText}</div>}
 
         {/* 번역문: 원문과 시각적으로 확실히 구분한다 */}
-        {message.translatedText && (
-          <div
+        {view !== 'original' && message.translatedText && (
+          <div data-testid="message-translation"
             style={{
               marginTop: 6,
               paddingTop: 6,
@@ -71,7 +73,7 @@ export function MessageBubble({
           </div>
         )}
 
-        {hint && (
+        {view !== 'original' && hint && (
           <div
             style={{
               marginTop: 6,
@@ -105,6 +107,9 @@ export function MessageBubble({
         )}
       </div>
 
+      {message.senderType === 'customer' && message.originalLanguage !== 'ko' && message.translationStatus === 'none' && !message.translatedText && onRetranslate && (
+        <button type="button" onClick={() => onRetranslate(message.id)} style={{ fontSize: 11 }}>한국어로 번역</button>
+      )}
       <span data-testid="message-time" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
         {formatTime(message.createdAt)}
       </span>

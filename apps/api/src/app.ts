@@ -1,3 +1,4 @@
+import { settingsRoutes } from './settings/settingsRoutes';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Express } from 'express';
@@ -41,6 +42,7 @@ export function createApp(): Express {
   app.use('/api/admin/chat-rooms', adminChatRoutes);
   app.use('/api/admin/translate', translateRoutes);
   app.use('/api/admin/ops', metricsRoutes);
+  app.use('/api/admin/settings/chat', settingsRoutes);
   app.use('/api/public/chat', publicChatRoutes);
 
   app.use((_req, _res, next) => next(notFound('요청한 경로를 찾을 수 없습니다.')));

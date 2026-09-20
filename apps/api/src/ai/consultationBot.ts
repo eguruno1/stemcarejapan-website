@@ -1,3 +1,4 @@
+import { getChatSettings, lockChatConfiguration } from '../settings/chatSettings';
 import { LANGUAGES, type Language } from '@stemcare/shared';
 import type { Server } from 'socket.io';
 import { z } from 'zod';
@@ -46,7 +47,7 @@ export async function generateBotReply(input: { roomId: string }): Promise<BotDe
     include: { customer: true }
   });
 
-  if (!room) return { kind: 'skip' };
+  if (!room || room.consultationMode === 'human' || !(await getChatSettings()).aiEnabled) return { kind: 'skip' };
 
   // "운영자 전환 후에는 AI가 자동으로 끼어들지 않는다" - bot 상태일 때만 답한다.
   // waiting(운영자 대기 중)에도 끼어들면, 전환 직후 고객이 보낸 다음 메시지마다
@@ -143,12 +144,17 @@ export function runBotTurn(io: Server | null, roomId: string): Promise<void> {
 async function executeTurn(io: Server | null, roomId: string): Promise<void> {
   try {
     // 모델을 기다리는 동안에는 잠금을 잡지 않는다.
+    const settings = await getChatSettings();
+    if (!settings.aiEnabled) return;
     const before = await prisma.chatRoom.findUnique({ where: { id: roomId }, include: { customer: true } });
-    if (!before || before.status !== 'bot') return;
+    if (!before || before.consultationMode === 'human' || before.status !== 'bot') return;
     const decision = await generateBotReply({ roomId });
     if (decision.kind === 'skip') return;
     const row = await prisma.$transaction(async tx => {
+      await lockChatConfiguration(tx);
       const room = await lockRoom(tx, roomId);
+      const current = await getChatSettings(tx);
+      if (!current.aiEnabled || current.revision !== settings.revision || room.consultationMode === 'human') return null;
       // 운영자 전환·종료 또는 새 고객 메시지 이후의 오래된 답변은 폐기한다.
       if (room.status !== 'bot' || room.lastMessageAt?.getTime() !== before.lastMessageAt?.getTime()) return null;
       const language = before.customer.preferredLanguage as Language;

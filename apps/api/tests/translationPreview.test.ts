@@ -68,6 +68,20 @@ describe('POST /api/admin/translate/preview', () => {
     expect(res.body.error.code).toBe('TRANSLATION_FAILED');
   });
 
+  it('외부 API 키가 없으면 로컬 제공자 저장 방법을 안내한다', async () => {
+    setModelCaller(null);
+    const { agent } = await loginAgent();
+    const res = await agent.post('/api/admin/translate/preview').send({
+      text: '안녕하세요', sourceLanguage: 'ko', targetLanguage: 'ja'
+    });
+    expect(res.status).toBe(503);
+    expect(res.body.error.message).toContain('외부 번역 API 키가 설정되지 않았습니다');
+    expect(res.body.error.message).toContain('설정 저장');
+    const check = await agent.post('/api/admin/settings/chat/test-translation').send({ provider: 'external' });
+    expect(check.body.result.reason).toBe('EXTERNAL_NOT_CONFIGURED');
+    expect(check.body.message).toBe(res.body.error.message);
+  });
+
   it('빈 문자열은 400 이다', async () => {
     const { agent } = await loginAgent();
 

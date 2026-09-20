@@ -42,6 +42,9 @@ model Customer {
 }
 
 model ChatRoom {
+  translationEnabled Boolean @default(true) @map("translation_enabled")
+  translationRevision Int @default(0) @map("translation_revision")
+  consultationMode String @default("assisted") @map("consultation_mode")
   id                 String    @id @default(uuid())
   customerId         String    @map("customer_id")
   assignedOperatorId String?   @map("assigned_operator_id")
@@ -133,4 +136,13 @@ model ChatFeedback {
 
   @@index([createdAt])
   @@map("chat_feedbacks")
+}
+
+model ChatSettings {
+  id                  Int     @id @default(1)
+  translationProvider String  @default("external") @map("translation_provider")
+  translationEnabled  Boolean @default(true) @map("translation_enabled")
+  aiEnabled           Boolean @default(true) @map("ai_enabled")
+  revision            Int     @default(0)
+  @@map("chat_settings")
 }
