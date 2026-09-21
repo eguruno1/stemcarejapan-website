@@ -1,4 +1,8 @@
 docs/**
+!docs/chat/
+!docs/chat/plans/
+!docs/chat/plans/20260919_chating system_구축계획서.md
+!docs/chat/plans/20260919_Chating Server System_개발 계획서.md
 !docs/plans/
 !docs/plans/working/
 !docs/plans/working/20260904_phase[4-6]_상담채팅시스템개발계획서.md
